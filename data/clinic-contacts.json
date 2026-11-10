@@ -1,0 +1,86 @@
+{
+  "node/5287204821": {
+    "phones": [
+      "+998712033003"
+    ],
+    "source_url": "https://www.akfamedline.com/uz/branches",
+    "checked_on": "2026-10-19",
+    "label": "Qo‘ng‘iroq markazi"
+  },
+  "node/11335630670": {
+    "phones": [
+      "+998781400010"
+    ],
+    "source_url": "https://medion.uz/ru/contacts",
+    "checked_on": "2026-10-19",
+    "label": "Tarmoq qabulxonasi"
+  },
+  "node/12801324438": {
+    "phones": [
+      "+998781400010"
+    ],
+    "source_url": "https://medion.uz/ru/contacts",
+    "checked_on": "2026-10-19",
+    "label": "Tarmoq qabulxonasi"
+  },
+  "node/2334084645": {
+    "phones": [
+      "+998712002220"
+    ],
+    "source_url": "https://gov.uz/oz/ssv/sections/view/3419",
+    "checked_on": "2026-10-19",
+    "label": "Klinika"
+  },
+  "node/8123233230": {
+    "phones": [
+      "+998712302212",
+      "+998712312212"
+    ],
+    "source_url": "https://gov.uz/oz/ssv/sections/view/3419",
+    "checked_on": "2026-10-19",
+    "label": "Klinika"
+  },
+  "node/13449319763": {
+    "phones": [
+      "+998951997793",
+      "+998712087793"
+    ],
+    "source_url": "https://gov.uz/oz/ssv/sections/view/3419",
+    "checked_on": "2026-10-19",
+    "label": "Klinika"
+  },
+  "way/176011654": {
+    "phones": [
+      "+998712649610",
+      "+998712649609"
+    ],
+    "source_url": "https://gov.uz/oz/advice/NaN/document/2185",
+    "checked_on": "2026-10-19",
+    "label": "Markaz"
+  },
+  "way/592032053": {
+    "phones": [
+      "+998712000269",
+      "+998711506583"
+    ],
+    "source_url": "https://rscu.uz/ru/o-nas/kontakty/",
+    "checked_on": "2026-10-19",
+    "label": "Call-markaz / poliklinika"
+  },
+  "way/95933958": {
+    "phones": [
+      "+998781504600"
+    ],
+    "source_url": "https://gov.uz/oz/advice/NaN/document/2185",
+    "checked_on": "2026-10-19",
+    "label": "Markaz qabulxonasi"
+  },
+  "way/1317589129": {
+    "phones": [
+      "+998712606330"
+    ],
+    "source_url": "https://gov.uz/oz/advice/NaN/document/2185",
+    "checked_on": "2026-10-19",
+    "label": "Markaz"
+  }
+}
