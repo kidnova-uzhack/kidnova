@@ -4,6 +4,7 @@ import math
 import os
 from pathlib import Path
 import sqlite3
+import threading
 import time
 import urllib.request
 import urllib.error
@@ -12,6 +13,7 @@ from ai_assistant import answer as ai_answer, AIError
 import care
 import qr_identity
 import rfid_identity
+import supabase_bridge
 
 ROOT = Path(__file__).resolve().parent
 COMMANDS = [
@@ -23,6 +25,8 @@ COMMANDS = [
     {'command': 'doctor', 'description': 'Yaqin klinikalarni topish'},
     {'command': 'vaccines', 'description': 'Emlashlar va eslatmalar'},
     {'command': 'arrival', 'description': 'Harorat skriningi va kelish qaydi haqida'},
+    {'command': 'link', 'description': 'KidNova bog‘cha kodini ulash: /link KN-XXXXXX'},
+    {'command': 'unlink', 'description': 'KidNova ulanishini uzish'},
     {'command': 'help', 'description': 'AI yordamchi (faollashtirilgach)'},
     {'command': 'guide', 'description': 'Botdan foydalanish qo‘llanmasi'},
     {'command': 'cancel', 'description': 'Joriy amalni bekor qilish'},
@@ -94,9 +98,11 @@ def start_arrivals(token):
                         int(settings.get('ARRIVAL_PORT', '8080')))
 
 class Bot:
-    def __init__(self, db, send, ask_ai=None):
+    def __init__(self, db, send, ask_ai=None, kidnova=None):
         self.db, self.send = db, send
         self.ask_ai = ask_ai or (lambda messages: ai_answer(load_settings(), messages))
+        self.kidnova = kidnova  # supabase_bridge.Supabase or None
+        self.link_attempts = {}
         self.ai_chats = {}
         self.care_results = {}
         db.executescript('''
@@ -132,6 +138,47 @@ class Bot:
         self.db.execute('INSERT OR REPLACE INTO sessions VALUES(?,?,?)', (user, step, json.dumps(payload or {})))
         self.db.commit()
 
+    def link(self, user, code):
+        if not self.kidnova:
+            return self.send(user, 'KidNova ulanishi hali sozlanmagan. Bog‘cha masʼuliga murojaat qiling.', MENU)
+        now = time.monotonic()
+        attempts = [t for t in self.link_attempts.get(user, []) if now - t < 600]
+        if len(attempts) >= 5:
+            return self.send(user, 'Juda ko‘p urinish. 10 daqiqadan so‘ng qayta urinib ko‘ring.', MENU)
+        self.link_attempts[user] = attempts + [now]
+        try:
+            digest = supabase_bridge.code_hash(code)
+        except ValueError:
+            return self.send(user, 'Kodni bog‘cha bergan ko‘rinishda yuboring: /link KN-XXXXXX', MENU)
+        try:
+            result = self.kidnova.rpc('kidnova_redeem_telegram_code', {'p_code_hash': digest, 'p_chat_id': user})
+        except supabase_bridge.SupabaseError:
+            return self.send(user, 'KidNova bazasiga ulanib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring.', MENU)
+        if not result or not result.get('ok'):
+            return self.send(user, 'Kod noto‘g‘ri, ishlatilgan yoki muddati o‘tgan. Bog‘chadan yangi kod so‘rang.', MENU)
+        self.link_attempts.pop(user, None)
+        return self.send(user, f'✅ {result["child_name"]} ushbu chatga ulandi.\n\n'
+                               'Endi KidNova bog‘chada tekshirgan maʼlumotlar shu yerga keladi va 📊 Tarix bo‘limida ko‘rinadi. '
+                               'Uzish: /unlink', MENU)
+
+    def unlink(self, user):
+        if not self.kidnova:
+            return self.send(user, 'KidNova ulanishi hali sozlanmagan.', MENU)
+        try:
+            removed = self.kidnova.rpc('kidnova_telegram_unlink', {'p_chat_id': user})
+        except supabase_bridge.SupabaseError:
+            return self.send(user, 'KidNova bazasiga ulanib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring.', MENU)
+        return self.send(user, 'KidNova ulanishi uzildi.' if removed else 'Bu chat KidNova ga ulanmagan.', MENU)
+
+    def kidnova_history(self, user):
+        if not self.kidnova:
+            return ''
+        try:
+            return supabase_bridge.history_text(
+                self.kidnova.rpc('kidnova_telegram_history', {'p_chat_id': user, 'p_limit': 10}) or [])
+        except supabase_bridge.SupabaseError:
+            return '🤖 KidNova tekshiruvlarini hozir yuklab bo‘lmadi.'
+
     def clear(self, user):
         self.care_results.pop(user, None)
         self.ai_chats.pop(user, None)
@@ -153,6 +200,12 @@ class Bot:
             return
         if not text:
             return self.send(user, 'Matn yuboring. /cancel — bekor qilish.')
+        if text.split()[0] == '/link':
+            self.clear(user)
+            return self.link(user, text.partition(' ')[2])
+        if text == '/unlink':
+            self.clear(user)
+            return self.unlink(user)
         if text.split()[0].split('@')[0] == '/start':
             self.clear(user)
             return self.send(user, WELCOME, MENU)
@@ -164,7 +217,9 @@ class Bot:
             return self.send(user, '🌡 Harorat skriningi va kelish qaydi\n\nHozirgi RFID oqimi dasturiy simulyatsiya: kontaktsiz harorat skriningi asosiy qayd, davomat esa ikkilamchi qayd sifatida saqlanadi. Ota-ona Telegram xabari faqat oldindan ko‘rish uchun tayyorlanadi va yuborilmaydi.\n\n'
                              f'Bog‘cha masʼuliga ulash uchun chat ID: {user}\n'
                              'Masʼul ota-onalikni tekshirgach faqat sintetik RFID tegini shu profilga bog‘laydi. Profil yaratish tegni avtomatik ulamaydi.\n\n'
-                             'Bu simulyatsiya tibbiy tashxis emas va haqiqiy sensor o‘lchovi hisoblanmaydi.', MENU)
+                             'Bu simulyatsiya tibbiy tashxis emas va haqiqiy sensor o‘lchovi hisoblanmaydi.\n\n'
+                             '🤖 KidNova: bog‘cha bergan kodni /link KN-XXXXXX ko‘rinishida yuboring. '
+                             'Shundan so‘ng KidNova tekshiruvlari shu chatga va 📊 Tarix bo‘limiga keladi.', MENU)
         if text in ('ℹ️ Yordam', '/help', '/ai', '🆕 Yangi suhbat'):
             self.clear(user)
             self.state(user, 'ai')
@@ -193,7 +248,10 @@ class Bot:
             self.clear(user)
             rows = self.db.execute('SELECT temperature,symptoms,created FROM records WHERE user=? ORDER BY id DESC LIMIT 10', (user,)).fetchall()
             result = '\n\n'.join(f'{date} UTC\n{temp:g} °C — {symptoms[:280]}' for temp, symptoms, date in rows)
-            return self.send(user, result or 'Hali qaydlar yo‘q.', MENU)
+            kidnova = self.kidnova_history(user)
+            if kidnova:
+                result = (('📝 Sizning qaydlaringiz\n\n' + result + '\n\n') if result else '') + kidnova
+            return self.send(user, (result or 'Hali qaydlar yo‘q.')[:4000], MENU)
         if text == '🗑 Maʼlumotlarni o‘chirish':
             self.state(user, 'delete')
             return self.send(user, 'Kundalik profil, qo‘lda kiritilgan kuzatuvlar va emlash eslatmalarini o‘chirish uchun OCHIR deb yozing. Qurilma bog‘lanishi va kelish navbati uchun bog‘cha masʼuliga murojaat qiling. /cancel — bekor qilish.')
@@ -305,7 +363,14 @@ class Bot:
                           'records', 'vaccinations', 'sessions', 'profiles'):
                 self.db.execute(f'DELETE FROM {table} WHERE user=?', (user,))
             self.db.commit()
-            return self.send(user, 'Bot bazasidagi maʼlumotlaringiz o‘chirildi.', MENU)
+            note = ''
+            if self.kidnova:
+                try:
+                    self.kidnova.rpc('kidnova_telegram_unlink', {'p_chat_id': user})
+                    note = ' KidNova ulanishi ham uzildi.'
+                except supabase_bridge.SupabaseError:
+                    note = ' KidNova ulanishini uzib bo‘lmadi; keyinroq /unlink yuboring.'
+            return self.send(user, 'Bot bazasidagi maʼlumotlaringiz o‘chirildi.' + note, MENU)
 
 def api(token, method, payload):
     req = urllib.request.Request('https://api.telegram.org/bot' + token + '/' + method,
@@ -331,7 +396,13 @@ def main():
         if markup:
             payload['reply_markup'] = markup
         api(token, 'sendMessage', payload)
-    bot = Bot(db, send)
+    try:
+        settings = load_settings()
+        kidnova = supabase_bridge.from_settings(settings)
+        kidnova_mode = supabase_bridge.delivery_mode(settings)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    bot = Bot(db, send, kidnova=kidnova)
     try:
         identity = api(token, 'getMe', {})
         if identity.get('username', '').lower() != 'glow_well_bot':
@@ -344,6 +415,13 @@ def main():
         arrival_server = start_arrivals(token)
     except (OSError, ValueError) as exc:
         raise SystemExit('Kelish modulini ishga tushirib bo‘lmadi. DEVICE_API_KEY, children.json va portni tekshiring.') from None
+    if kidnova:
+        threading.Thread(target=supabase_bridge.worker, args=(kidnova, send, kidnova_mode), daemon=True).start()
+        print('KidNova Supabase ulanishi yoqildi. Rejim: ' +
+              ('SEND — ulangan ota-onalarga haqiqiy Telegram xabari yuboriladi' if kidnova_mode == 'send'
+               else 'PREVIEW — Telegramga hech narsa yuborilmaydi'))
+    else:
+        print('KidNova Supabase ulanishi o‘chiq (SUPABASE_URL / SUPABASE_SECRET_KEY yo‘q).')
     print('@glow_well_bot ishga tushdi. To‘xtatish: Ctrl+C')
     row = db.execute("SELECT value FROM meta WHERE key='offset'").fetchone()
     offset = row[0] if row else 0
