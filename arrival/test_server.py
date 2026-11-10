@@ -16,6 +16,15 @@ class ArrivalTests(unittest.TestCase):
     def tearDown(self):
         self.patch.stop()
         self.temp.cleanup()
+    def test_worker_survives_unexpected_error(self):
+        calls=[]
+        def flaky(token):
+            calls.append(1)
+            if len(calls)==1:raise server.sqlite3.OperationalError('database is locked')
+            raise KeyboardInterrupt
+        with patch.object(server,'deliver_once',side_effect=flaky), patch.object(server.time,'sleep'), patch('builtins.print'):
+            with self.assertRaises(KeyboardInterrupt):server.worker('fake-token')
+        self.assertEqual(len(calls),2)
     def test_routing_and_message(self):
         chat, text, _ = server.prepare(self.data, self.children)
         self.assertEqual(chat, 123)

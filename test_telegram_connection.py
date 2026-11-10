@@ -28,4 +28,25 @@ class ConnectionTests(unittest.TestCase):
             sleep.assert_called_once_with(3)
             self.assertEqual(sum(call.args[1]=='getUpdates' for call in api.call_args_list),3)
 
+    def test_failed_reply_does_not_replay_update(self):
+        update={'update_id':7,'message':{'chat':{'id':111,'type':'private'},'text':'/start'}}
+        responses=[{'username':'glow_well_bot'},{'url':''},[update],[],KeyboardInterrupt()]
+        def fake_api(token,method,payload):
+            if method=='sendMessage':raise RuntimeError('Telegram HTTP 403')
+            item=responses.pop(0)
+            if isinstance(item,BaseException):raise item
+            return item
+        handled=[]
+        original=bot.Bot.handle
+        def spy(self,msg):
+            handled.append(msg['text']);return original(self,msg)
+        with tempfile.TemporaryDirectory() as folder, patch.object(bot,'ROOT',Path(folder)), \
+             patch.object(bot,'load_token',return_value='fake-token'), \
+             patch.object(bot,'start_arrivals'), patch.object(bot,'api',side_effect=fake_api) as api, \
+             patch.object(bot.Bot,'handle',spy), patch.object(bot.time,'sleep'), patch('builtins.print'):
+            with self.assertRaises(KeyboardInterrupt):bot.main()
+            offsets=[call.args[2]['offset'] for call in api.call_args_list if call.args[1]=='getUpdates']
+        self.assertEqual(handled,['/start'])
+        self.assertEqual(offsets[1:],[8,8])
+
 if __name__=='__main__':unittest.main()

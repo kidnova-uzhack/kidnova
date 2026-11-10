@@ -232,7 +232,12 @@ def deliver_once(token):
 
 def worker(token):
     while True:
-        deliver_once(token)
+        try:
+            deliver_once(token)
+        except Exception as exc:
+            # Keep the delivery thread alive (e.g. a locked database); never log message data.
+            print(f'Outbox worker error: {type(exc).__name__}; retrying.', flush=True)
+            time.sleep(5)
         time.sleep(1)
 
 

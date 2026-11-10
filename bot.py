@@ -324,7 +324,8 @@ def api(token, method, payload):
 def main():
     os.umask(0o077)
     token = load_token()
-    db = sqlite3.connect(ROOT / 'glowwell.db')
+    # The arrival server writes to this file too; wait for its lock instead of failing.
+    db = sqlite3.connect(ROOT / 'glowwell.db', timeout=10)
     def send(user, text, markup=None):
         payload = {'chat_id': user, 'text': text}
         if markup:
@@ -350,15 +351,30 @@ def main():
         try:
             care.remind(db, send)
             updates = api(token, 'getUpdates', {'offset': offset, 'timeout': 25, 'allowed_updates': ['message']})
-            for update in updates:
-                if 'message' in update:
-                    bot.handle(update['message'])
-                offset = update['update_id'] + 1
-                db.execute("INSERT OR REPLACE INTO meta VALUES('offset',?)", (offset,))
-                db.commit()
         except RuntimeError as exc:
             print(str(exc))  # No token, URL or health data in logs.
             time.sleep(3)
+            continue
+        except sqlite3.Error:
+            db.rollback()
+            print('Baza vaqtincha band; qayta urinilmoqda.')
+            time.sleep(3)
+            continue
+        for update in updates:
+            if 'message' in update:
+                try:
+                    bot.handle(update['message'])
+                except Exception as exc:
+                    # One bad update (blocked chat, locked DB, bug) must not stall polling
+                    # or be replayed forever. Log only the error type: no chat or health data.
+                    db.rollback()
+                    print(f'Xabarni qayta ishlashda xato: {type(exc).__name__}')
+            offset = update['update_id'] + 1
+            try:
+                db.execute("INSERT OR REPLACE INTO meta VALUES('offset',?)", (offset,))
+                db.commit()
+            except sqlite3.Error:
+                db.rollback()  # offset stays in memory; saved on the next successful commit
 
 if __name__ == '__main__':
     try:
