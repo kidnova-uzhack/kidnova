@@ -3,7 +3,7 @@
 Barcha bolalar uydirma (Demo Child A–F). Haqiqiy bola ma'lumotini kiritmang.
 
 ## 1. SQL'ni bir marta ishga tushirish
-Supabase → SQL Editor → New query → `supabase/telegram_bridge.sql` matnini to'liq qo'ying → Run.
+Supabase → SQL Editor → New query → `supabase/telegram_bridge.sql` matnini to'liq qo'ying → Run. Keyin xuddi shunday `supabase/telegram_multi_child.sql` ni ham Run qiling (bitta chatga bir nechta bola ulanadi).
 Bu faqat yangi jadval va funksiyalar qo'shadi; saytning mavjud jadvallari o'zgarmaydi.
 
 ## 2. Botning `.env` fayli

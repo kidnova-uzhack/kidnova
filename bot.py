@@ -154,12 +154,19 @@ class Bot:
             result = self.kidnova.rpc('kidnova_redeem_telegram_code', {'p_code_hash': digest, 'p_chat_id': user})
         except supabase_bridge.SupabaseError:
             return self.send(user, 'KidNova bazasiga ulanib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring.', MENU)
+        if result and result.get('reason') == 'limit':
+            return self.send(user, 'Bu chatga 10 tadan ortiq bola ulab bo‘lmaydi. Kod ishlatilmadi.', MENU)
         if not result or not result.get('ok'):
             return self.send(user, 'Kod noto‘g‘ri, ishlatilgan yoki muddati o‘tgan. Bog‘chadan yangi kod so‘rang.', MENU)
         self.link_attempts.pop(user, None)
-        return self.send(user, f'✅ {result["child_name"]} ushbu chatga ulandi.\n\n'
+        name, count = result['child_name'], result.get('children', 1)
+        head = (f'ℹ️ {name} bu chatga avval ulangan edi.' if result.get('already')
+                else f'✅ {name} ushbu chatga ulandi.')
+        more = (f'\n\nBu chatga ulangan bolalar soni: {count}. Har biri haqida xabar alohida keladi.'
+                if count > 1 else '')
+        return self.send(user, head + more + '\n\n'
                                'Endi KidNova bog‘chada tekshirgan maʼlumotlar shu yerga keladi va 📊 Tarix bo‘limida ko‘rinadi. '
-                               'Uzish: /unlink', MENU)
+                               'Yana bola qo‘shish: /link KN-XXXXXX · Barchasini uzish: /unlink', MENU)
 
     def unlink(self, user):
         if not self.kidnova:
@@ -168,7 +175,8 @@ class Bot:
             removed = self.kidnova.rpc('kidnova_telegram_unlink', {'p_chat_id': user})
         except supabase_bridge.SupabaseError:
             return self.send(user, 'KidNova bazasiga ulanib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring.', MENU)
-        return self.send(user, 'KidNova ulanishi uzildi.' if removed else 'Bu chat KidNova ga ulanmagan.', MENU)
+        return self.send(user, 'KidNova ulanishlari (barcha bolalar) uzildi.' if removed
+                         else 'Bu chat KidNova ga ulanmagan.', MENU)
 
     def kidnova_history(self, user):
         if not self.kidnova:

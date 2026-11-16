@@ -158,7 +158,38 @@ class BotCommandTests(unittest.TestCase):
     def test_unlink(self):
         client = FakeClient({'kidnova_telegram_unlink': True})
         self.make(client).handle(self.msg('/unlink'))
-        self.assertEqual(self.sent[-1], 'KidNova ulanishi uzildi.')
+        self.assertEqual(self.sent[-1], 'KidNova ulanishlari (barcha bolalar) uzildi.')
+
+    def test_link_second_child_mentions_count(self):
+        client = FakeClient({'kidnova_redeem_telegram_code': {'ok': True, 'child_name': 'Demo Child B',
+                                                              'already': False, 'children': 2}})
+        self.make(client).handle(self.msg('/link KN-ABC234'))
+        self.assertIn('Demo Child B ushbu chatga ulandi', self.sent[-1])
+        self.assertIn('ulangan bolalar soni: 2', self.sent[-1])
+
+    def test_link_same_child_again(self):
+        client = FakeClient({'kidnova_redeem_telegram_code': {'ok': True, 'child_name': 'Demo Child A',
+                                                              'already': True, 'children': 1}})
+        self.make(client).handle(self.msg('/link KN-ABC234'))
+        self.assertIn('avval ulangan edi', self.sent[-1])
+
+    def test_link_limit(self):
+        client = FakeClient({'kidnova_redeem_telegram_code': {'ok': False, 'reason': 'limit'}})
+        self.make(client).handle(self.msg('/link KN-ABC234'))
+        self.assertIn('10 tadan ortiq', self.sent[-1])
+
+    def test_history_groups_several_children(self):
+        rows = [dict(ROW, reviewed=False), dict(ROW, local_time='09.11.2026 08:10', temperature_c=36.6,
+                                                 requires_staff_review=False),
+                dict(ROW, display_name='Demo Child B', temperature_c=36.5, requires_staff_review=False)]
+        text = sb.history_text(rows)
+        self.assertEqual(text.count('KidNova tekshiruvlari —'), 2)
+        a, b = text.split('\n\n')
+        self.assertIn('Demo Child A', a)
+        self.assertEqual(a.count('°C'), 2)
+        self.assertIn('Demo Child B', b)
+        self.assertIn('36.5 °C', b)
+        self.assertEqual(sb.history_text([]), '')
 
 
 if __name__ == '__main__':

@@ -103,15 +103,16 @@ def format_message(row):
 
 
 def history_text(rows):
-    if not rows:
-        return ''
-    lines = []
+    """One block per child, in the order Supabase returned them (several children per chat)."""
+    groups = {}
     for row in rows:
         flag = '🟠 xodim tekshiruvi' + (' (ko‘rib chiqilgan)' if row.get('reviewed') else '') \
             if row['requires_staff_review'] else '✅'
-        lines.append(f'{row["local_time"]} — {_number(row["temperature_c"])} °C, '
-                     f'{row["height_cm"]} sm, {_number(row["weight_kg"])} kg {flag}')
-    return f'🤖 KidNova tekshiruvlari — {rows[0]["display_name"]} (DEMO)\n' + '\n'.join(lines)
+        groups.setdefault(row['display_name'], []).append(
+            f'{row["local_time"]} — {_number(row["temperature_c"])} °C, '
+            f'{row["height_cm"]} sm, {_number(row["weight_kg"])} kg {flag}')
+    return '\n\n'.join(f'🤖 KidNova tekshiruvlari — {name} (DEMO)\n' + '\n'.join(lines)
+                       for name, lines in groups.items())
 
 
 def deliver_pending(client, send, mode, log=print):

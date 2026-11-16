@@ -1,4 +1,5 @@
 -- KidNova <-> Telegram bot bridge. Run ONCE in Supabase SQL Editor, AFTER the website's schema.sql.
+-- Then also run telegram_multi_child.sql (lets one chat follow several children).
 -- Additive only: existing website tables, policies and RPCs are not changed.
 -- Synthetic demo children only. Only the bot (server-side secret / service_role key) can use these
 -- objects; the browser's publishable key gets no access.

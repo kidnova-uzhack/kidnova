@@ -24,7 +24,7 @@ is an operator-only feature and uses `requirements-qr.txt`.
 - `scripts/qr_admin.py`: local staff tool for issuing and revoking QR cards.
 - `care.py`, `nearby.py`: vaccination reminders and nearby clinic search.
 - `ai_assistant.py`: optional OpenAI-backed parent help flow.
-- `supabase_bridge.py`: KidNova Supabase link (/link, history, check-in notifications). SQL: `supabase/telegram_bridge.sql`. `SUPABASE_DELIVERY=preview` by default; `send` only with explicit human approval.
+- `supabase_bridge.py`: KidNova Supabase link (/link, history, check-in notifications). SQL: `supabase/telegram_bridge.sql`, then `supabase/telegram_multi_child.sql` (one chat can follow several children). `SUPABASE_DELIVERY=preview` by default; `send` only with explicit human approval.
 
 Tests must use temporary databases and synthetic child data. Mock or disable
 Telegram delivery during tests. Do not deploy or send real messages unless the
