@@ -1,4 +1,4 @@
-"""GlowWell arrival adapter. Python 3.11+, standard library only."""
+"""KidNova arrival adapter. Python 3.11+, standard library only."""
 import hashlib
 import hmac
 import json
@@ -72,7 +72,7 @@ def prepare(data, children):
         'invalid': '⚪ Ishonchli natija olinmadi. Xodim o‘lchovni qayta tekshirishi kerak.'
     }
     message = (
-        f'🌿 GlowWell — bog‘chaga kelish\n\n'
+        f'🌿 KidNova — bog‘chaga kelish\n\n'
         f'Farzandingiz {child["name"]} bog‘chaga keldi.\n'
         f'📅 O‘lchov vaqti: {local:%d.%m.%Y %H:%M} ({local.tzname()})\n'
         f'🌡 Harorat: {value:.1f} °C\n'
@@ -92,8 +92,8 @@ def prepare_rfid_preview(data, child):
     measured = datetime.fromisoformat(data['measured_at'].replace('Z', '+00:00'))
     local = measured.astimezone(ZoneInfo(os.getenv('DISPLAY_TIMEZONE', 'Asia/Tashkent')))
     simulated = rfid_identity.tag_source(data['rfid_tag']) == 'rfid_simulation'
-    title = ('🌿 GlowWell — harorat skriningi (SIMULYATSIYA)' if simulated else
-             '🌿 GlowWell — harorat skriningi (HARDWARE PROTOTIPI, TASDIQLANMAGAN)')
+    title = ('🌿 KidNova — harorat skriningi (SIMULYATSIYA)' if simulated else
+             '🌿 KidNova — harorat skriningi (HARDWARE PROTOTIPI, TASDIQLANMAGAN)')
     reading_label = ('kontaktsiz harorat o‘lchovi simulyatsiya qilindi' if simulated else
                      'prototip adapteridan harorat o‘lchovi olindi; hardware tasdiqlanmagan')
     attendance_label = ('sintetik RFID' if simulated else 'RFID prototip adapteri')
@@ -279,8 +279,13 @@ def handler(secret, children, profile_db=None):
 def start(token, secret, children_file=None, host='127.0.0.1', port=8080, profile_db=None):
     if len(secret) < 32:
         raise SystemExit('DEVICE_API_KEY must contain at least 32 characters')
-    with open(children_file or ROOT / 'children.json', encoding='utf-8') as file:
-        children = json.load(file)
+    children_path = Path(children_file or ROOT / 'children.json')
+    # children.json is only needed for the legacy child_id flow; QR/RFID work without it.
+    if children_path.is_file():
+        with open(children_path, encoding='utf-8') as file:
+            children = json.load(file)
+    else:
+        children = {}
     if not isinstance(children, dict):
         raise ValueError('children.json must contain an object')
     # Bind first, so a port conflict cannot leave an extra delivery worker running.
@@ -294,7 +299,7 @@ def start(token, secret, children_file=None, host='127.0.0.1', port=8080, profil
     init_db()
     threading.Thread(target=worker, args=(token,), daemon=True).start()
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    print('GlowWell arrival adapter started. Keep exactly one instance running.', flush=True)
+    print('KidNova arrival adapter started. Keep exactly one instance running.', flush=True)
     return server
 
 

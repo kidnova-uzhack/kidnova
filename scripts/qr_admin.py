@@ -11,7 +11,7 @@ import qr_identity
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Manage QR cards for existing GlowWell child profiles')
+    parser = argparse.ArgumentParser(description='Manage QR cards for existing KidNova child profiles')
     parser.add_argument('--db', type=Path, default=Path(__file__).resolve().parent.parent / 'glowwell.db')
     sub = parser.add_subparsers(dest='action', required=True)
     issue = sub.add_parser('issue', help='Issue or rotate a QR card')

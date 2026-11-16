@@ -1,4 +1,4 @@
-"""GlowWell hackathon MVP. Python 3.10+, standard library only."""
+"""KidNova parent bot (formerly GlowWell). Python 3.10+, standard library only."""
 import json
 import math
 import os
@@ -34,7 +34,7 @@ COMMANDS = [
 COMMAND_ALIASES = {'/menu': '⬅️ Asosiy menyu', '/profile': '👶 Bola profili',
                    '/record': '📝 Holat kiritish', '/history': '📊 Tarix'}
 MENU = {'keyboard': [['👶 Bola profili', '📝 Holat kiritish'], ['🩺 Shifokor topish', '💉 Emlashlar'], ['🏫 Bog‘chaga kelish', '📊 Tarix'], ['ℹ️ Yordam', '🗑 Maʼlumotlarni o‘chirish']], 'resize_keyboard': True}
-WELCOME = ('Assalomu alaykum! 🌿 GlowWell botiga xush kelibsiz!\n\n'
+WELCOME = ('Assalomu alaykum! 🌿 KidNova botiga xush kelibsiz!\n\n'
            'Bu bot farzandingiz haqidagi qaydlarni yuritish va emlash sanalarini eslab turishga yordam beradi.\n\n'
            '👶 Bola profili — farzandingizning ismi va yoshini kiriting. Yosh yillarda yoziladi: masalan, 3.\n\n'
            '📝 Holat kiritish — o‘lchangan harorat va kuzatgan alomatlaringizni yozib boring.\n\n'
@@ -47,7 +47,7 @@ WELCOME = ('Assalomu alaykum! 🌿 GlowWell botiga xush kelibsiz!\n\n'
            'Boshlash uchun pastdagi 👶 Bola profili tugmasini bosing. Boshqa bo‘limlarni ham to‘g‘ridan-to‘g‘ri ochishingiz mumkin.\n\n'
            )
 AI_MENU = {'keyboard': [['🩺 Shifokor topish', '💉 Emlashlar'], ['🆕 Yangi suhbat', '📖 Bot qo‘llanmasi'], ['⬅️ Asosiy menyu']], 'resize_keyboard': True}
-AI_INTRO = ('🤖 GlowWell AI yordamchisi\n\nSavolingizni oddiy matn bilan yozing. Bola parvarishi, bog‘cha va boshqa savollaringizga javob beraman.\n\n'
+AI_INTRO = ('🤖 KidNova AI yordamchisi\n\nSavolingizni oddiy matn bilan yozing. Bola parvarishi, bog‘cha va boshqa savollaringizga javob beraman.\n\n'
             'Men AI yordamchiman, shifokor emasman. Javoblar xato bo‘lishi mumkin. Shoshilinch holatda bot javobini kutmay, mahalliy tez yordamga murojaat qiling.\n\n'
             'Savolingiz va shu suhbatdagi so‘nggi xabarlar javob tayyorlash uchun OpenAI xizmatiga yuboriladi. Profil va tarix avtomatik yuborilmaydi. Shaxsiy maʼlumotlarni yozmang.\n\n'
             '🆕 Yangi suhbat — suhbat xotirasini tozalash. /cancel — chiqish.')
@@ -226,7 +226,7 @@ class Bot:
             return self.send(user, AI_INTRO, AI_MENU)
         if text in ('📖 Bot qo‘llanmasi', '/guide'):
             self.clear(user)
-            return self.send(user, '🩺 Shifokor topish: lokatsiya bo‘yicha klinika variantlarini bot ichida ko‘rish. 💉 Emlashlar: shifokor belgilagan sanalar va kundalik eslatmalar.\n\nProfil: bolaning ismi, yoshi (yillarda), ixtiyoriy jins, vazn, bo‘y va muhim izoh. Profil bo‘limida har bir maydonni tahrirlash mumkin. Holat: qo‘lda o‘lchangan harorat va kuzatilgan alomatlar. Tarix: oxirgi 10 qo‘lda kiritilgan yozuv, vaqt UTC. /cancel — jarayonni bekor qilish.\n\nBog‘chaga kelish: qurilmadan avtomatik xabarlar uchun ulanish maʼlumoti. Bola IDsi masʼul tomonidan chatga bog‘lanadi. Qurilma xabarlari qo‘lda kiritilgan tarixga qo‘shilmaydi.\n\nMaʼlumot SQLite bazalarda saqlanadi. O‘chirish kundalik profil, qo‘lda kiritilgan qaydlar va emlash eslatmalarini o‘chiradi; Telegram xabarlari qoladi. Qurilma bog‘lanishi va kelish navbatini o‘chirish uchun bog‘cha masʼuliga murojaat qiling.', MENU)
+            return self.send(user, '🩺 Shifokor topish: lokatsiya bo‘yicha klinika variantlarini bot ichida ko‘rish. 💉 Emlashlar: shifokor belgilagan sanalar va kundalik eslatmalar.\n\nProfil: bolaning ismi, yoshi (yillarda), ixtiyoriy jins, vazn, bo‘y va muhim izoh. Profil bo‘limida har bir maydonni tahrirlash mumkin. Holat: qo‘lda o‘lchangan harorat va kuzatilgan alomatlar. Tarix: oxirgi 10 ta o‘zingiz kiritgan yozuv (vaqt UTC) va KidNova ulangan bo‘lsa, bog‘chadagi tekshiruvlar. /cancel — jarayonni bekor qilish.\n\nBog‘chaga kelish: bog‘cha bergan kodni /link KN-XXXXXX ko‘rinishida yuboring. Shundan so‘ng KidNova tekshiruvlari shu chatga keladi. Uzish: /unlink.\n\nMaʼlumot SQLite bazalarda saqlanadi. O‘chirish profil, barcha holat qaydlari, emlash eslatmalari, QR/RFID bog‘lanishlari va KidNova ulanishini o‘chiradi; Telegram chatidagi xabarlar qoladi. Bog‘chadagi KidNova tekshiruv yozuvlari bog‘cha bazasida qoladi.', MENU)
         if text == '👶 Bola profili':
             self.clear(user)
             return self.profile(user)
@@ -254,7 +254,7 @@ class Bot:
             return self.send(user, (result or 'Hali qaydlar yo‘q.')[:4000], MENU)
         if text == '🗑 Maʼlumotlarni o‘chirish':
             self.state(user, 'delete')
-            return self.send(user, 'Kundalik profil, qo‘lda kiritilgan kuzatuvlar va emlash eslatmalarini o‘chirish uchun OCHIR deb yozing. Qurilma bog‘lanishi va kelish navbati uchun bog‘cha masʼuliga murojaat qiling. /cancel — bekor qilish.')
+            return self.send(user, 'Profil, barcha holat qaydlari, emlash eslatmalari, QR/RFID bog‘lanishlari va KidNova ulanishini o‘chirish uchun OCHIR deb yozing. Bog‘chadagi KidNova tekshiruv yozuvlari bog‘cha bazasida qoladi. /cancel — bekor qilish.')
         if care.handle(self, user, text):
             return
         row = self.db.execute('SELECT step,payload FROM sessions WHERE user=?', (user,)).fetchone()
@@ -405,12 +405,19 @@ def main():
     bot = Bot(db, send, kidnova=kidnova)
     try:
         identity = api(token, 'getMe', {})
-        if identity.get('username', '').lower() != 'glow_well_bot':
-            raise SystemExit('Token @glow_well_bot ga tegishli emas.')
+        username = identity.get('username', '')
+        expected = settings.get('BOT_USERNAME', '').strip().lstrip('@').lower()
+        if expected and username.lower() != expected:
+            raise SystemExit(f'Token @{expected} ga emas, @{username} ga tegishli. .env dagi BOT_USERNAME ni tekshiring.')
         if api(token, 'getWebhookInfo', {}).get('url'):
             raise SystemExit('Webhook mavjud. Uni olib tashlang yoki webhook serverdan foydalaning.')
     except RuntimeError as exc:
         raise SystemExit(str(exc)) from None
+    try:
+        # Show the "/" command menu in Telegram; a new bot has none until this is set.
+        api(token, 'setMyCommands', {'commands': COMMANDS})
+    except RuntimeError as exc:
+        print('Buyruqlar menyusini o‘rnatib bo‘lmadi: ' + str(exc))
     try:
         arrival_server = start_arrivals(token)
     except (OSError, ValueError) as exc:
@@ -422,7 +429,7 @@ def main():
                else 'PREVIEW — Telegramga hech narsa yuborilmaydi'))
     else:
         print('KidNova Supabase ulanishi o‘chiq (SUPABASE_URL / SUPABASE_SECRET_KEY yo‘q).')
-    print('@glow_well_bot ishga tushdi. To‘xtatish: Ctrl+C')
+    print(f'@{username} ishga tushdi. To‘xtatish: Ctrl+C')
     row = db.execute("SELECT value FROM meta WHERE key='offset'").fetchone()
     offset = row[0] if row else 0
     while True:

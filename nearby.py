@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 class SearchError(Exception):
     pass
 
-USER_AGENT = 'GlowWellBot/1.0 (https://t.me/glow_well_bot)'
+USER_AGENT = 'KidNovaBot/1.0'
 _geocache = {}
 _last_geocode = 0
 

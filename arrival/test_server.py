@@ -25,6 +25,16 @@ class ArrivalTests(unittest.TestCase):
         with patch.object(server,'deliver_once',side_effect=flaky), patch.object(server.time,'sleep'), patch('builtins.print'):
             with self.assertRaises(KeyboardInterrupt):server.worker('fake-token')
         self.assertEqual(len(calls),2)
+    def test_start_without_children_file(self):
+        folder = Path(self.temp.name)
+        profile = folder / 'profile.db'
+        import sqlite3
+        with sqlite3.connect(str(profile)) as db:
+            db.execute('CREATE TABLE profiles(user INTEGER PRIMARY KEY, name TEXT, age INTEGER)')
+            db.execute('CREATE TABLE records(id INTEGER PRIMARY KEY, user INTEGER, temperature REAL, symptoms TEXT, created TEXT)')
+        with patch.object(server.threading, 'Thread'), patch('builtins.print'):
+            httpd = server.start('fake-token', 'x' * 32, folder / 'missing.json', port=0, profile_db=profile)
+        httpd.server_close()
     def test_routing_and_message(self):
         chat, text, _ = server.prepare(self.data, self.children)
         self.assertEqual(chat, 123)
