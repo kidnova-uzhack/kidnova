@@ -45,6 +45,52 @@ class AIClientTests(unittest.TestCase):
                 ai_assistant.answer({'OPENAI_API_KEY': 'fake-key'}, [])
 
 
+class GeminiTests(unittest.TestCase):
+    def reply(self, body):
+        return patch.object(ai_assistant.urllib.request, 'urlopen', return_value=io.BytesIO(json.dumps(body).encode()))
+
+    def test_provider_choice(self):
+        self.assertEqual(ai_assistant.provider({'GEMINI_API_KEY': 'g'}), 'gemini')
+        self.assertEqual(ai_assistant.provider({'OPENAI_API_KEY': 'o'}), 'openai')
+        self.assertEqual(ai_assistant.provider({'GEMINI_API_KEY': 'g', 'AI_PROVIDER': 'openai'}), 'openai')
+        self.assertEqual(ai_assistant.provider_label({'GEMINI_API_KEY': 'g'}), 'Google Gemini')
+
+    def test_request_and_output(self):
+        body = {'candidates': [{'finishReason': 'STOP', 'content': {'parts': [
+            {'text': 'thinking', 'thought': True}, {'text': 'Salom!'}]}}]}
+        messages = [{'role': 'user', 'content': 'Salom'}, {'role': 'assistant', 'content': 'Va alaykum'},
+                    {'role': 'user', 'content': 'Yordam'}]
+        with self.reply(body) as request:
+            self.assertEqual(ai_assistant.answer({'GEMINI_API_KEY': 'fake-key'}, messages), 'Salom!')
+        sent = request.call_args.args[0]
+        self.assertEqual(sent.full_url, 'https://generativelanguage.googleapis.com/v1beta/models/'
+                                        'gemini-3.5-flash:generateContent')
+        self.assertNotIn('fake-key', sent.full_url)
+        self.assertEqual(sent.get_header('X-goog-api-key'), 'fake-key')
+        data = json.loads(sent.data)
+        self.assertEqual([c['role'] for c in data['contents']], ['user', 'model', 'user'])
+        self.assertIn('not a clinician', data['systemInstruction']['parts'][0]['text'])
+
+    def test_blocked_or_truncated_is_error(self):
+        for body in ({'promptFeedback': {'blockReason': 'SAFETY'}},
+                     {'candidates': [{'finishReason': 'MAX_TOKENS', 'content': {'parts': [{'text': 'yarim'}]}}]},
+                     {'candidates': [{'finishReason': 'SAFETY'}]}):
+            with self.reply(body):
+                with self.assertRaises(ai_assistant.AIError):
+                    ai_assistant.answer({'GEMINI_API_KEY': 'fake-key'}, [{'role': 'user', 'content': 'x'}])
+
+    def test_errors_hide_key_and_bad_model_rejected(self):
+        error = urllib.error.HTTPError('url?key=secret', 400, 'secret', {}, None)
+        with patch.object(ai_assistant.urllib.request, 'urlopen', side_effect=error):
+            with self.assertRaises(ai_assistant.AIError) as caught:
+                ai_assistant.answer({'GEMINI_API_KEY': 'secret'}, [{'role': 'user', 'content': 'x'}])
+        self.assertNotIn('secret', str(caught.exception))
+        with patch.object(ai_assistant.urllib.request, 'urlopen') as request:
+            with self.assertRaises(ai_assistant.AIError):
+                ai_assistant.answer({'GEMINI_API_KEY': 'k', 'GEMINI_MODEL': '../x?y'}, [])
+            request.assert_not_called()
+
+
 class AIConversationTests(unittest.TestCase):
     def setUp(self):
         self.db = sqlite3.connect(':memory:')
@@ -63,7 +109,7 @@ class AIConversationTests(unittest.TestCase):
 
     def test_help_discloses_ai_and_preserves_existing_profile(self):
         self.say('/help')
-        self.assertIn('OpenAI', self.sent[-1][1])
+        self.assertRegex(self.sent[-1][1], r'(OpenAI|Google Gemini) xizmatiga yuboriladi')
         self.assertIn('AI', self.sent[-1][1])
         self.say('Salom')
         self.assertEqual(self.sent[-1][1], 'AI test javobi')

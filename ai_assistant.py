@@ -1,5 +1,6 @@
-"""OpenAI Responses client. No Telegram IDs or stored child profiles are sent."""
+"""AI client: Google Gemini or OpenAI Responses. No Telegram IDs or stored child profiles are sent."""
 import json
+import re
 import urllib.error
 import urllib.request
 
@@ -29,7 +30,68 @@ class AIError(Exception):
     pass
 
 
+def provider(settings):
+    """'gemini' or 'openai'. AI_PROVIDER wins; otherwise Gemini when its key is set."""
+    chosen = settings.get('AI_PROVIDER', '').strip().lower()
+    if chosen in ('gemini', 'openai'):
+        return chosen
+    return 'gemini' if settings.get('GEMINI_API_KEY', '').strip() else 'openai'
+
+
+def provider_label(settings):
+    return 'Google Gemini' if provider(settings) == 'gemini' else 'OpenAI'
+
+
+def _post(url, payload, headers):
+    request = urllib.request.Request(url, json.dumps(payload).encode(),
+                                     {'Content-Type': 'application/json', **headers})
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 429:
+            raise AIError('AI xizmati hozir band yoki limiti tugagan. Birozdan so‘ng qayta urinib ko‘ring.') from None
+        raise AIError('AI xizmatiga ulanib bo‘lmadi. Bot masʼuliga xabar bering yoki keyinroq urinib ko‘ring.') from None
+    except (OSError, ValueError):
+        raise AIError('AI bilan ulanish uzildi. Iltimos, qayta urinib ko‘ring.') from None
+
+
 def answer(settings, messages):
+    if provider(settings) == 'gemini':
+        return answer_gemini(settings, messages)
+    return answer_openai(settings, messages)
+
+
+def answer_gemini(settings, messages):
+    key = settings.get('GEMINI_API_KEY', '').strip()
+    if not key:
+        raise AIError('AI assistent hali ulanmagan. Bot masʼuli Gemini API kalitini sozlashi kerak.')
+    model = (settings.get('GEMINI_MODEL') or 'gemini-3.5-flash').strip()
+    if not re.fullmatch(r'[A-Za-z0-9._-]+', model):
+        raise AIError('AI modeli noto‘g‘ri sozlangan. Bot masʼuliga xabar bering.')
+    payload = {
+        'systemInstruction': {'parts': [{'text': INSTRUCTIONS}]},
+        'contents': [{'role': 'model' if m['role'] == 'assistant' else 'user', 'parts': [{'text': m['content']}]}
+                     for m in messages],
+        'generationConfig': {'maxOutputTokens': 2048},
+    }
+    # Key goes in a header, never in the URL, so it cannot leak into logs or error text.
+    result = _post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                   payload, {'x-goog-api-key': key})
+    candidates = result.get('candidates') if isinstance(result, dict) else None
+    if not candidates:
+        raise AIError('Bu savolga javob berib bo‘lmadi. Savolni boshqacha yozib ko‘ring.')
+    candidate = candidates[0]
+    if candidate.get('finishReason') not in (None, 'STOP'):
+        raise AIError('To‘liq javob olinmadi. Savolni qisqaroq yozib, qayta yuboring.')
+    text = '\n'.join(part.get('text', '') for part in candidate.get('content', {}).get('parts', [])
+                     if not part.get('thought')).strip()
+    if not text:
+        raise AIError('Javob olinmadi. Savolingizni boshqacha yozib ko‘ring.')
+    return text[:6000]
+
+
+def answer_openai(settings, messages):
     key = settings.get('OPENAI_API_KEY', '').strip()
     if not key or key == 'OPENAI_API_KALITINGIZ':
         raise AIError('AI assistent hali ulanmagan. Bot masʼuli OpenAI API kalitini sozlashi kerak.')
@@ -40,20 +102,7 @@ def answer(settings, messages):
         'max_output_tokens': 900,
         'store': False,
     }
-    request = urllib.request.Request(
-        'https://api.openai.com/v1/responses',
-        json.dumps(payload).encode(),
-        {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=25) as response:
-            result = json.load(response)
-    except urllib.error.HTTPError as exc:
-        if exc.code == 429:
-            raise AIError('AI xizmati hozir band yoki limiti tugagan. Birozdan so‘ng qayta urinib ko‘ring.') from None
-        raise AIError('AI xizmatiga ulanib bo‘lmadi. Bot masʼuliga xabar bering yoki keyinroq urinib ko‘ring.') from None
-    except (OSError, ValueError):
-        raise AIError('AI bilan ulanish uzildi. Iltimos, qayta urinib ko‘ring.') from None
+    result = _post('https://api.openai.com/v1/responses', payload, {'Authorization': 'Bearer ' + key})
     if not isinstance(result, dict) or result.get('status') != 'completed':
         raise AIError('To‘liq javob olinmadi. Savolni qisqaroq yozib, qayta yuboring.')
     parts = []

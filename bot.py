@@ -9,7 +9,7 @@ import time
 import urllib.request
 import urllib.error
 import http.client
-from ai_assistant import answer as ai_answer, AIError
+from ai_assistant import answer as ai_answer, AIError, provider_label
 import care
 import qr_identity
 import rfid_identity
@@ -49,7 +49,7 @@ WELCOME = ('Assalomu alaykum! 🌿 KidNova botiga xush kelibsiz!\n\n'
 AI_MENU = {'keyboard': [['🩺 Shifokor topish', '💉 Emlashlar'], ['🆕 Yangi suhbat', '📖 Bot qo‘llanmasi'], ['⬅️ Asosiy menyu']], 'resize_keyboard': True}
 AI_INTRO = ('🤖 KidNova AI yordamchisi\n\nSavolingizni oddiy matn bilan yozing. Bola parvarishi, bog‘cha va boshqa savollaringizga javob beraman.\n\n'
             'Men AI yordamchiman, shifokor emasman. Javoblar xato bo‘lishi mumkin. Shoshilinch holatda bot javobini kutmay, mahalliy tez yordamga murojaat qiling.\n\n'
-            'Savolingiz va shu suhbatdagi so‘nggi xabarlar javob tayyorlash uchun OpenAI xizmatiga yuboriladi. Profil va tarix avtomatik yuborilmaydi. Shaxsiy maʼlumotlarni yozmang.\n\n'
+            'Savolingiz va shu suhbatdagi so‘nggi xabarlar javob tayyorlash uchun {provider} xizmatiga yuboriladi. Profil va tarix avtomatik yuborilmaydi. Ism, manzil, telefon va boshqa shaxsiy maʼlumotlarni yozmang.\n\n'
             '🆕 Yangi suhbat — suhbat xotirasini tozalash. /cancel — chiqish.')
 PROFILE_MENU = {'keyboard': [['✏️ Ism', '📅 Yosh'], ['🚼 Jins', '⚖️ Vazn'], ['📏 Bo‘y', '📌 Muhim izoh'], ['⬅️ Asosiy menyu']], 'resize_keyboard': True}
 SKIP_MENU = {'keyboard': [['⏭ O‘tkazib yuborish'], ['⬅️ Asosiy menyu']], 'resize_keyboard': True}
@@ -231,7 +231,7 @@ class Bot:
         if text in ('ℹ️ Yordam', '/help', '/ai', '🆕 Yangi suhbat'):
             self.clear(user)
             self.state(user, 'ai')
-            return self.send(user, AI_INTRO, AI_MENU)
+            return self.send(user, AI_INTRO.format(provider=provider_label(load_settings())), AI_MENU)
         if text in ('📖 Bot qo‘llanmasi', '/guide'):
             self.clear(user)
             return self.send(user, '🩺 Shifokor topish: lokatsiya bo‘yicha klinika variantlarini bot ichida ko‘rish. 💉 Emlashlar: shifokor belgilagan sanalar va kundalik eslatmalar.\n\nProfil: bolaning ismi, yoshi (yillarda), ixtiyoriy jins, vazn, bo‘y va muhim izoh. Profil bo‘limida har bir maydonni tahrirlash mumkin. Holat: qo‘lda o‘lchangan harorat va kuzatilgan alomatlar. Tarix: oxirgi 10 ta o‘zingiz kiritgan yozuv (vaqt UTC) va KidNova ulangan bo‘lsa, bog‘chadagi tekshiruvlar. /cancel — jarayonni bekor qilish.\n\nBog‘chaga kelish: bog‘cha bergan kodni /link KN-XXXXXX ko‘rinishida yuboring. Shundan so‘ng KidNova tekshiruvlari shu chatga keladi. Uzish: /unlink.\n\nMaʼlumot SQLite bazalarda saqlanadi. O‘chirish profil, barcha holat qaydlari, emlash eslatmalari, QR/RFID bog‘lanishlari va KidNova ulanishini o‘chiradi; Telegram chatidagi xabarlar qoladi. Bog‘chadagi KidNova tekshiruv yozuvlari bog‘cha bazasida qoladi.', MENU)
