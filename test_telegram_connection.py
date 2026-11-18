@@ -65,3 +65,16 @@ class ConnectionTests(unittest.TestCase):
                     self.assertIn('link',commands)
 
 if __name__=='__main__':unittest.main()
+
+
+class DataDirTests(unittest.TestCase):
+    def test_data_dir_from_env_is_created(self):
+        import tempfile, os
+        from pathlib import Path
+        from unittest import mock
+        import bot as bot_module
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / 'volume'
+            with mock.patch.dict(os.environ, {'DATA_DIR': str(target)}):
+                self.assertEqual(bot_module.data_dir(), target)
+            self.assertTrue(target.is_dir())

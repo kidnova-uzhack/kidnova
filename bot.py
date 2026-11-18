@@ -79,6 +79,12 @@ def load_settings():
                 values[key.strip()] = value.strip().strip('\"\'')
     return {**values, **os.environ}
 
+def data_dir():
+    """Folder for glowwell.db. On a server, point DATA_DIR at a persistent volume (e.g. /data)."""
+    path = Path(load_settings().get('DATA_DIR') or ROOT)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 def load_token():
     token = load_settings().get('BOT_TOKEN', '')
     if not token or token == 'YANGI_TOKENNI_SHU_YERGA_QOYING':
@@ -95,7 +101,8 @@ def start_arrivals(token):
     return server.start(token, settings.get('DEVICE_API_KEY', ''),
                         settings.get('CHILDREN_FILE', str(ROOT / 'children.json')),
                         settings.get('ARRIVAL_HOST', '127.0.0.1'),
-                        int(settings.get('ARRIVAL_PORT', '8080')))
+                        int(settings.get('ARRIVAL_PORT', '8080')),
+                        profile_db=data_dir() / 'glowwell.db')
 
 class Bot:
     def __init__(self, db, send, ask_ai=None, kidnova=None):
@@ -398,7 +405,7 @@ def main():
     os.umask(0o077)
     token = load_token()
     # The arrival server writes to this file too; wait for its lock instead of failing.
-    db = sqlite3.connect(ROOT / 'glowwell.db', timeout=10)
+    db = sqlite3.connect(data_dir() / 'glowwell.db', timeout=10)
     def send(user, text, markup=None):
         payload = {'chat_id': user, 'text': text}
         if markup:
