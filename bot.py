@@ -105,8 +105,9 @@ def start_arrivals(token):
                         profile_db=data_dir() / 'glowwell.db')
 
 class Bot:
-    def __init__(self, db, send, ask_ai=None, kidnova=None):
+    def __init__(self, db, send, ask_ai=None, kidnova=None, send_venue=None):
         self.db, self.send = db, send
+        self.send_venue = send_venue  # optional: Telegram map card for clinic directions
         self.ask_ai = ask_ai or (lambda messages: ai_answer(load_settings(), messages))
         self.kidnova = kidnova  # supabase_bridge.Supabase or None
         self.link_attempts = {}
@@ -241,7 +242,7 @@ class Bot:
             return self.send(user, AI_INTRO.format(provider=provider_label(load_settings())), AI_MENU)
         if text in ('📖 Bot qo‘llanmasi', '/guide'):
             self.clear(user)
-            return self.send(user, '🩺 Shifokor topish: lokatsiya bo‘yicha klinika variantlarini bot ichida ko‘rish. 💉 Emlashlar: shifokor belgilagan sanalar va kundalik eslatmalar.\n\nProfil: bolaning ismi, yoshi (yillarda), ixtiyoriy jins, vazn, bo‘y va muhim izoh. Profil bo‘limida har bir maydonni tahrirlash mumkin. Holat: qo‘lda o‘lchangan harorat va kuzatilgan alomatlar. Tarix: oxirgi 10 ta o‘zingiz kiritgan yozuv (vaqt UTC) va KidNova ulangan bo‘lsa, bog‘chadagi tekshiruvlar. /cancel — jarayonni bekor qilish.\n\nBog‘chaga kelish: bog‘cha bergan kodni /link KN-XXXXXX ko‘rinishida yuboring. Shundan so‘ng KidNova tekshiruvlari shu chatga keladi. Uzish: /unlink.\n\nMaʼlumot SQLite bazalarda saqlanadi. O‘chirish profil, barcha holat qaydlari, emlash eslatmalari, QR/RFID bog‘lanishlari va KidNova ulanishini o‘chiradi; Telegram chatidagi xabarlar qoladi. Bog‘chadagi KidNova tekshiruv yozuvlari bog‘cha bazasida qoladi.', MENU)
+            return self.send(user, '🩺 Shifokor topish: kerakli shifokorni tanlang, lokatsiya yuboring — yaqin klinikalar chiqadi, birini tanlasangiz xaritada yo‘l ko‘rsatiladi. 💉 Emlashlar: shifokor belgilagan sanalar va kundalik eslatmalar.\n\nProfil: bolaning ismi, yoshi (yillarda), ixtiyoriy jins, vazn, bo‘y va muhim izoh. Profil bo‘limida har bir maydonni tahrirlash mumkin. Holat: qo‘lda o‘lchangan harorat va kuzatilgan alomatlar. Tarix: oxirgi 10 ta o‘zingiz kiritgan yozuv (vaqt UTC) va KidNova ulangan bo‘lsa, bog‘chadagi tekshiruvlar. /cancel — jarayonni bekor qilish.\n\nBog‘chaga kelish: bog‘cha bergan kodni /link KN-XXXXXX ko‘rinishida yuboring. Shundan so‘ng KidNova tekshiruvlari shu chatga keladi. Uzish: /unlink.\n\nMaʼlumot SQLite bazalarda saqlanadi. O‘chirish profil, barcha holat qaydlari, emlash eslatmalari, QR/RFID bog‘lanishlari va KidNova ulanishini o‘chiradi; Telegram chatidagi xabarlar qoladi. Bog‘chadagi KidNova tekshiruv yozuvlari bog‘cha bazasida qoladi.', MENU)
         if text == '👶 Bola profili':
             self.clear(user)
             return self.profile(user)
@@ -411,13 +412,18 @@ def main():
         if markup:
             payload['reply_markup'] = markup
         api(token, 'sendMessage', payload)
+    def send_venue(user, lat, lon, title, address, markup=None):
+        payload = {'chat_id': user, 'latitude': lat, 'longitude': lon, 'title': title, 'address': address}
+        if markup:
+            payload['reply_markup'] = markup
+        api(token, 'sendVenue', payload)
     try:
         settings = load_settings()
         kidnova = supabase_bridge.from_settings(settings)
         kidnova_mode = supabase_bridge.delivery_mode(settings)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
-    bot = Bot(db, send, kidnova=kidnova)
+    bot = Bot(db, send, kidnova=kidnova, send_venue=send_venue)
     try:
         identity = api(token, 'getMe', {})
         username = identity.get('username', '')

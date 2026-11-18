@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
 import math
+import re
 import time
 import nearby
 
@@ -31,87 +32,167 @@ def today():
     return datetime.now(UZ).date()
 
 
-CATEGORIES = {
-    '☎️ Telefonli klinikalar': (),
-    '🏥 Barcha klinikalar': (),
-    '👶 Pediatr': ('paediatrics', 'pediatrics'),
-    '🧠 Nevrolog': ('neurology',),
-    '👂 LOR': ('otolaryngology',),
-    '👁 Ko‘z shifokori': ('ophthalmology',),
+# label: (OSM healthcare:speciality values, regex on the clinic's name, words a parent may type)
+DOCTORS = {
+    '👶 Pediatr': (('paediatrics', 'pediatrics'),
+                  r'детск|педиатр|pediatr|\bbolalar|\bkids?\b|children',
+                  ('pediatr', 'bolalar', 'bola shifokor', 'детск', 'педиатр')),
+    '👂 LOR': (('otolaryngology',), r'\bлор\b|\blor\b|оторино|otorino',
+              ('lor', 'quloq', 'tomoq', 'burun', 'лор', 'otorino')),
+    '👁 Ko‘z shifokori': (('ophthalmology',), r'глаз|офтальм|oftalm|окулист|\bko[‘’\'`]?z\b|\beye',
+                         ('ko‘z', "ko'z", 'koz', 'oftalm', 'окулист', 'глаз')),
+    '🧠 Nevrolog': (('neurology',), r'невр|nevrolog|neuro', ('nevrolog', 'asab', 'невролог')),
+    '🦷 Stomatolog': (('dentist', 'dentistry', 'stomatology'), r'стомат|stomatolog|dental|\bdent',
+                     ('stomatolog', 'tish', 'стоматолог', 'dentist')),
+    '🧴 Dermatolog': (('dermatology',), r'дерм|dermatolog|кожн|\bteri\b', ('dermatolog', 'teri', 'toshma', 'дерматолог')),
+    '🤧 Allergolog': (('allergology',), r'аллерг|allergolog', ('allergolog', 'allergiya', 'аллерг')),
+    '❤️ Kardiolog': (('cardiology',), r'кардио|kardio|cardio', ('kardiolog', 'yurak', 'кардиолог')),
+    '🦴 Ortoped': (('orthopaedics', 'orthopedics', 'trauma'), r'ортопед|травм|ortoped|travm',
+                  ('ortoped', 'travm', 'suyak', 'ортопед')),
+    '🩺 Umumiy shifokor': ((), '', ('umumiy', 'terapevt', 'oilaviy', 'poliklinika')),
 }
-CARE_MENU = {'keyboard': [['☎️ Telefonli klinikalar', '🏥 Barcha klinikalar'], ['👶 Pediatr', '🧠 Nevrolog'], ['👂 LOR', '👁 Ko‘z shifokori'], ['🩺 Shifokor topish', '⬅️ Asosiy menyu']], 'resize_keyboard': True}
+DOCTOR_MENU = {'keyboard': [['👶 Pediatr', '👂 LOR', '👁 Ko‘z shifokori'], ['🧠 Nevrolog', '🦷 Stomatolog', '🧴 Dermatolog'],
+                            ['🤧 Allergolog', '❤️ Kardiolog', '🦴 Ortoped'], ['🩺 Umumiy shifokor', '⬅️ Asosiy menyu']],
+               'resize_keyboard': True}
+PICK = re.compile(r'^📍 ([1-5])$')
+RESULT_LIMIT = 5
 
 
-def search(bot, user, lat, lon):
-    bot.send(user, '🔎 Yaqin atrofdagi tibbiyot muassasalarini qidiryapman…', BACK)
-    items = nearby.places(lat, lon)
+def doctor_from_text(text):
+    if text in DOCTORS:
+        return text
+    words = text.casefold()
+    for label, (_, _, typed) in DOCTORS.items():
+        if any(word in words for word in typed):
+            return label
+    return None
+
+
+def match_reason(item, label):
+    """'tag' when the catalog lists the specialty, 'name' when the clinic's name says so, else None."""
+    tags, pattern, _ = DOCTORS[label]
+    listed = [part.strip().lower() for part in item.get('specialty', '').split(';')]
+    if tags and any(value in listed for value in tags):
+        return 'tag'
+    if pattern and re.search(pattern, item.get('name', ''), re.IGNORECASE):
+        return 'name'
+    return None
+
+
+def pick_clinics(items, label):
+    """Specialty matches first; if fewer than 3, add the nearest general clinics, clearly labelled."""
+    matched = [dict(item, reason=match_reason(item, label)) for item in items]
+    exact = [item for item in matched if item['reason']][:RESULT_LIMIT]
+    if len(exact) >= 3 or label == '🩺 Umumiy shifokor':
+        return exact if exact else [dict(item, reason='general') for item in items[:RESULT_LIMIT]]
+    # Padding must be a general clinic, not e.g. an eye clinic offered to someone looking for a dentist.
+    others = [other for other in DOCTORS if other not in (label, '🩺 Umumiy shifokor')]
+    general = [dict(item, reason='general') for item in matched
+               if not item['reason'] and not any(match_reason(item, other) for other in others)]
+    return sorted(exact + general[:RESULT_LIMIT - len(exact)], key=lambda row: row['km'])
+
+
+def route_buttons(item):
+    point = f'{item["lat"]:.6f},{item["lon"]:.6f}'
+    return {'inline_keyboard': [
+        [{'text': '🧭 Google Maps', 'url': 'https://www.google.com/maps/dir/?' + urlencode({'api': 1, 'destination': point})}],
+        [{'text': '🧭 Yandex Maps', 'url': 'https://yandex.uz/maps/?' + urlencode({'rtext': '~' + point, 'rtt': 'auto'})}],
+        [{'text': '🧭 Apple Maps (iPhone)', 'url': 'https://maps.apple.com/?' + urlencode({'daddr': point})}],
+    ]}
+
+
+def search(bot, user, lat, lon, label):
+    bot.send(user, f'🔎 {label} — yaqin klinikalarni qidiryapman…', BACK)
+    clinics = pick_clinics(nearby.places(lat, lon), label)
+    if not clinics:
+        bot.state(user, 'care_location', {'doctor': label})
+        return bot.send(user, 'Katalogda 15 km ichida klinika topilmadi. Boshqa lokatsiya yuboring.', LOCATION_MENU)
     now = time.monotonic()
     bot.care_results = {key: value for key, value in bot.care_results.items() if now - value['time'] < 600}
     if len(bot.care_results) >= 500:
         bot.care_results.pop(next(iter(bot.care_results)))
-    bot.state(user, 'care_results')
-    bot.care_results[user] = {'items': items, 'time': now}
-    show_results(bot, user, '🏥 Barcha klinikalar')
+    bot.state(user, 'care_results', {'doctor': label})
+    bot.care_results[user] = {'items': clinics, 'time': now, 'doctor': label}
+    note = {'tag': f'✅ Katalogda {label.split(" ", 1)[1].lower()} bor deb belgilangan',
+            'name': f'✅ Nomida {label.split(" ", 1)[1].lower()} yo‘nalishi ko‘rsatilgan',
+            'general': f'ℹ️ Umumiy klinika: {label.split(" ", 1)[1].lower()} bor-yo‘qligini telefon orqali aniqlang'}
+    lines = [f'{label} — eng yaqin {len(clinics)} ta klinika\n']
+    for index, item in enumerate(clinics, 1):
+        lines.append(f'{index}. {item["name"]}\n'
+                     f'   📍 ~{item["km"]:.1f} km · 🏠 {item["address"] or "manzil ko‘rsatilmagan"}\n'
+                     f'   ☎️ {item["phone"] or "telefon ko‘rsatilmagan"}\n'
+                     f'   {"🏥 " + (item.get("kind") or "klinika") if label == "🩺 Umumiy shifokor" else note[item["reason"]]}')
+    lines.append('\nYo‘l ko‘rsatish uchun pastdan raqamni tanlang 👇\n'
+                 'Masofa to‘g‘ri chiziq bo‘yicha. Manba: © OpenStreetMap contributors. '
+                 'Qabul vaqti va shifokor borligini telefon orqali aniqlang.')
+    keyboard = [[f'📍 {i}' for i in range(1, len(clinics) + 1)], ['🔁 Boshqa shifokor', '⬅️ Asosiy menyu']]
+    bot.send(user, '\n'.join(lines)[:4000], {'keyboard': keyboard, 'resize_keyboard': True})
 
 
-def show_results(bot, user, category):
+def send_route(bot, user, number):
     cached = bot.care_results.get(user)
     if not cached or time.monotonic() - cached['time'] >= 600:
         bot.care_results.pop(user, None)
-        bot.state(user, 'care_location')
-        return bot.send(user, 'Qidiruv muddati tugadi. Lokatsiyani qayta yuboring.', LOCATION_MENU)
-    specialties = CATEGORIES[category]
-    items = [item for item in cached['items'] if not specialties or any(value in [part.strip().lower() for part in item['specialty'].split(';')] for value in specialties)]
-    if category == '☎️ Telefonli klinikalar':
-        items = [item for item in items if item.get('callable_phone', bool(item['phone']))]
-    if not items:
-        return bot.send(user, 'O‘zbekiston katalogida 15 km ichida bu toifa bo‘yicha maʼlumot topilmadi. Bu yaqin atrofda shifokor yo‘q degani emas. 🏥 Barcha klinikalar tugmasini tanlang yoki boshqa lokatsiya yuboring.', CARE_MENU)
-    bot.send(user, f'{category} — eng yaqin {min(5, len(items))} ta variant. Masofa to‘g‘ri chiziq bo‘yicha.\nManba: © OpenStreetMap contributors (openstreetmap.org/copyright), 17.10.2026 nusxasi. Mutaxassis va qabul vaqtini telefon orqali aniqlashtiring.', CARE_MENU)
-    for index, item in enumerate(items[:5], 1):
-        text = (f'{index}. {item["name"]}\n📍 Taxminan {item["km"]:.1f} km\n'
-                f'🏠 {item["address"] or "Manzil manbada ko‘rsatilmagan"}\n'
-                f'☎️ {item["phone"] or "Telefon manbada ko‘rsatilmagan"}')
-        if item.get('phone_label'):
-            text += '\n' + item['phone_label']
-        route = 'https://www.google.com/maps/dir/?' + urlencode({'api': 1, 'destination': f'{item["lat"]},{item["lon"]}'})
-        buttons = [[{'text': '🗺 Yo‘lni ko‘rish (ixtiyoriy)', 'url': route}]]
-        if item.get('phone_source'):
-            buttons.append([{'text': 'Telefon manbasi', 'url': item['phone_source']}])
-        bot.send(user, text, {'inline_keyboard': buttons})
+        bot.state(user, 'care_doctor')
+        return bot.send(user, 'Qidiruv muddati tugadi. Qaysi shifokor kerakligini qayta tanlang.', DOCTOR_MENU)
+    if number > len(cached['items']):
+        return bot.send(user, 'Ro‘yxatdagi raqamlardan birini tanlang.')
+    item = cached['items'][number - 1]
+    title = item['name'][:100]
+    address = (item['address'] or f'~{item["km"]:.1f} km')[:100]
+    if getattr(bot, 'send_venue', None):
+        # Telegram's own map card: tapping it on the phone offers the installed map apps.
+        try:
+            bot.send_venue(user, item['lat'], item['lon'], title, address, route_buttons(item))
+            return
+        except RuntimeError:
+            pass
+    bot.send(user, f'📍 {title}\n🏠 {address}\nYo‘l ko‘rsatish uchun xaritani tanlang:', route_buttons(item))
 
 
 def handle(bot, user, text, location=None):
     row = bot.db.execute('SELECT step,payload FROM sessions WHERE user=?', (user,)).fetchone()
     step = row[0] if row else ''
+    payload = __import__('json').loads(row[1]) if row and row[1] else {}
     if location is not None and step != 'care_location':
         return False
-    if text in CATEGORIES:
-        show_results(bot, user, text)
+    if text in ('🩺 Shifokor topish', '/doctor', '🔁 Boshqa shifokor'):
+        bot.state(user, 'care_doctor')
+        bot.send(user, '🩺 Qaysi shifokor kerak?\n\nPastdan tanlang yoki o‘zingiz yozing (masalan: "quloq og‘riyapti", "tish shifokori").', DOCTOR_MENU)
         return True
-    if text in ('🩺 Shifokor topish', '/doctor'):
-        bot.state(user, 'care_location')
-        bot.send(user, '🩺 O‘zbekiston bo‘yicha shifokor qidirish\n\nLokatsiyani yuboring — yaqin klinikalar botning o‘zida chiqadi.\n\nO‘zbekiston klinikalari katalogidan qidiriladi. Lokatsiya tashqi qidiruv xizmatiga yuborilmaydi va bazaga saqlanmaydi. Natijalar 10 daqiqa suhbat xotirasida turadi.', LOCATION_MENU)
+    if step == 'care_doctor' and text and not text.startswith('/'):
+        label = doctor_from_text(text)
+        if not label:
+            bot.send(user, 'Qaysi shifokor ekanini tushunmadim. Iltimos, pastdagi ro‘yxatdan tanlang.', DOCTOR_MENU)
+            return True
+        bot.state(user, 'care_location', {'doctor': label})
+        bot.send(user, f'{label} — yaxshi.\n\nEndi 📍 Lokatsiyani yuborish tugmasini bosing: atrofingizdagi klinikalarni topaman.\n\n'
+                       'Lokatsiya faqat masofani hisoblash uchun ishlatiladi: tashqi xizmatga yuborilmaydi va bazaga saqlanmaydi.', LOCATION_MENU)
+        return True
+    if step == 'care_results' and PICK.match(text or ''):
+        send_route(bot, user, int(PICK.match(text).group(1)))
         return True
     if step == 'care_location' and (location is not None or (text and not text.startswith('/') and text not in ('💉 Emlashlar', '📋 Emlashlarim', '➕ Emlash sanasi'))):
+        label = payload.get('doctor', '🩺 Umumiy shifokor')
         if location is not None:
             lat, lon = location.get('latitude'), location.get('longitude')
             if any(type(v) not in (float, int) or not math.isfinite(v) for v in (lat, lon)) or not -90 <= lat <= 90 or not -180 <= lon <= 180:
                 bot.send(user, 'Lokatsiyani qayta yuboring.', LOCATION_MENU)
                 return True
-
         else:
             if not 3 <= len(text) <= 200:
                 bot.send(user, 'Hududni 3–200 belgi bilan yozing.', LOCATION_MENU)
                 return True
             try:
-                lat, lon, label = nearby.geocode(text + ', Uzbekistan')
-                bot.send(user, 'Topilgan hudud: ' + label[:400] + '\nMasofa shu hudud markazidan hisoblanadi.', BACK)
+                lat, lon, place = nearby.geocode(text + ', Uzbekistan')
+                bot.send(user, 'Topilgan hudud: ' + place[:400] + '\nMasofa shu hudud markazidan hisoblanadi.', BACK)
             except nearby.SearchError as exc:
                 bot.send(user, str(exc), LOCATION_MENU)
                 return True
         try:
-            search(bot, user, lat, lon)
+            search(bot, user, lat, lon, label)
         except nearby.SearchError as exc:
+            bot.state(user, 'care_location', {'doctor': label})
             bot.send(user, str(exc), LOCATION_MENU)
         return True
     if text in ('💉 Emlashlar', '/vaccines', '📋 Emlashlarim'):
