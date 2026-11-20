@@ -251,15 +251,25 @@ class Bot:
             return self.unlink(user)
         if text.split()[0].split('@')[0] == '/start':
             self.clear(user)
+            # t.me/<bot>?start=KN-XXXXXX arrives as "/start KN-XXXXXX": link in one tap.
+            code = text.partition(' ')[2].strip()
             if not self.has_consent(user):
                 self.send(user, WELCOME)
+                if code:
+                    self.state(user, 'consent', {'code': code[:20]})
                 return self.ask_consent(user)
+            if code:
+                return self.link(user, code)
             return self.send(user, WELCOME, MENU)
         if text == CONSENT_YES:
             self.db.execute('INSERT OR IGNORE INTO consents(user, accepted_at) VALUES(?, ?)',
                             (user, datetime.now(timezone.utc).isoformat(timespec='seconds')))
             self.db.commit()
-            return self.send(user, 'Rahmat! Endi botdan foydalanishingiz mumkin. Boshlash uchun 👶 Bola profili tugmasini bosing.', MENU)
+            row = self.db.execute('SELECT step, payload FROM sessions WHERE user=?', (user,)).fetchone()
+            code = json.loads(row[1]).get('code') if row and row[0] == 'consent' else None
+            self.clear(user)
+            self.send(user, 'Rahmat! Endi botdan foydalanishingiz mumkin. Boshlash uchun 👶 Bola profili tugmasini bosing.', MENU)
+            return self.link(user, code) if code else None
         if text == CONSENT_NO:
             self.clear(user)
             return self.send(user, 'Tushunarli. Rozilik bermasangiz, bot sizning maʼlumotlaringizni saqlamaydi. '

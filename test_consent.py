@@ -65,6 +65,19 @@ class ConsentTests(unittest.TestCase):
         self.say('OCHIR', 2)
         self.assertIsNone(self.db.execute('SELECT 1 FROM profiles WHERE user=2').fetchone())
 
+    def test_deep_link_after_consent_links_once_accepted(self):
+        calls = []
+        self.app.link = lambda user, code: calls.append((user, code))
+        self.say('/start KN-ABC234')
+        self.assertIn('Maxfiylik va rozilik', self.sent[-1][1])
+        self.assertEqual(calls, [])
+        self.say('✅ Roziman')
+        self.assertEqual(calls, [(1, 'KN-ABC234')])
+        self.say('/start KN-XYZ234')
+        self.assertEqual(calls[-1], (1, 'KN-XYZ234'))
+        self.say('/start')
+        self.assertEqual(len(calls), 2)
+
 
 if __name__ == '__main__':
     unittest.main()
