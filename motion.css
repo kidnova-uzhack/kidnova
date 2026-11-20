@@ -1,0 +1,190 @@
+/* Extra motion layer — compositor-only (transform/opacity/translate), disabled for reduced-motion users */
+@media (prefers-reduced-motion:no-preference){
+  /* hero entrance on load */
+  .hero h1,.hero-lede,.hero-actions,.hero .trust-row{animation:kn-up .9s cubic-bezier(.2,.7,.2,1) both}
+  .hero-lede{animation-delay:.14s}.hero-actions{animation-delay:.28s}.hero .trust-row{animation-delay:.42s}
+  @keyframes kn-up{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
+
+  /* shimmering accent in the headline */
+  .hero h1 em{background:linear-gradient(100deg,#2775d1 0%,#37c9db 35%,#7be0ee 50%,#37c9db 65%,#2775d1 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:kn-shimmer 9s linear infinite}
+  @keyframes kn-shimmer{to{background-position:-250% 0}}
+
+  /* idle floating (uses the `translate` property so it never fights JS parallax/tilt transforms) */
+  .floating-card{animation:kn-float 6s ease-in-out infinite}
+  .reading-card{animation-delay:-3s;animation-duration:7s}
+  .hero-orb{animation:kn-drift 12s ease-in-out infinite}
+  .hero-orb.orb-two{animation-duration:15s;animation-direction:reverse}
+  @keyframes kn-float{50%{translate:0 -12px}}
+  @keyframes kn-drift{33%{translate:18px -22px}66%{translate:-14px 14px}}
+
+  /* drifting particles in the hero */
+  .kn-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .kn-particles i{position:absolute;bottom:-20px;width:var(--s);height:var(--s);border-radius:50%;background:#37c9db;opacity:0;animation:kn-rise var(--t) linear var(--dl) infinite}
+  .kn-particles i:nth-child(3n){background:#2775d1}
+  @keyframes kn-rise{0%{opacity:0;transform:translate3d(0,0,0)}15%{opacity:.22}85%{opacity:.16}100%{opacity:0;transform:translate3d(var(--x),-105vh,0)}}
+
+  /* buttons: shine sweep + soft pulse on primary */
+  .button{position:relative;overflow:hidden;transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+  .button:hover{transform:translateY(-2px)}.button:active{transform:translateY(0) scale(.97)}
+  .button::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.28) 50%,transparent 70%);transform:translateX(-120%)}
+  .button:hover::after{transform:translateX(120%);transition:transform .7s ease}
+  .hero-actions .button-primary{animation:kn-pulse 4s ease-out infinite}
+  @keyframes kn-pulse{0%{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 22px rgba(39,117,209,.30),0 0 0 0 rgba(39,117,209,.28)}60%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 22px rgba(39,117,209,.30),0 0 0 14px rgba(39,117,209,0)}}
+
+  /* section heading + paragraph reveal */
+  .kn-rise{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+  .kn-rise.kn-in{opacity:1;transform:none}
+  .kn-left{opacity:0;transform:translateX(-40px);transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+  .kn-right{opacity:0;transform:translateX(40px);transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+  .kn-left.kn-in,.kn-right.kn-in{opacity:1;transform:none}
+
+  /* scroll progress bar shimmer */
+  .scroll-progress{background-size:200% 100%;animation:kn-bar 3s linear infinite}
+  @keyframes kn-bar{to{background-position:-200% 0}}
+}
+
+/* solution map: orbit ring matches the nodes' elliptical path */
+@media (min-width:761px) and (prefers-reduced-motion:no-preference){
+  .solution-shell:after{display:block;inset:14% 12.5%;border-color:#a9cfe0}
+  .solution-node{will-change:transform}
+}
+
+/* workflow: scroll-driven pinned stages */
+.workflow:after{content:"";position:absolute;height:2px;background:var(--blue);left:7%;right:7%;top:51px;transform:scaleX(var(--wf,0));transform-origin:left;display:none}
+@media (min-width:1051px) and (prefers-reduced-motion:no-preference){
+  .workflow-section.kn-pin{height:340vh;padding:0}
+  .workflow-section.kn-pin>.container{position:sticky;top:0;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:60px 0}
+  .workflow:after{display:block;z-index:0}
+  .workflow-step.done>i{border-color:var(--blue);color:var(--blue);background:#eaf3fd}
+  .workflow-step.done{color:var(--blue)}
+  .workflow-step>i{transition:background .3s,border-color .3s,box-shadow .3s,transform .3s}
+  .workflow-step.active>i{transform:scale(1.12)}
+  .workflow-progress i{transition:width .5s cubic-bezier(.2,.7,.2,1)}
+}
+
+
+/* ───────── Site-wide motion pass ───────── */
+@media (prefers-reduced-motion:no-preference){
+  :root{--kn-ease:cubic-bezier(.22,.61,.36,1)}
+
+  /* pause every looping animation in sections that are off screen */
+  .kn-off *:not(.kn-view,.kn-swap,.kn-swap *,details *),.kn-off *::before,.kn-off *::after{animation-play-state:paused!important}
+
+  /* staggered entrances (uses `translate`, so it never fights transforms) */
+  .kn-st{opacity:0;translate:0 16px;transition:opacity .6s ease calc(var(--i,0)*70ms),translate .7s var(--kn-ease) calc(var(--i,0)*70ms)!important}
+  .kn-st.kn-x{translate:-14px 0}
+  .kn-go .kn-st{opacity:1;translate:0 0}
+
+  /* large panels ease in with scroll position (browsers without scroll timelines just skip this) */
+  @supports (animation-timeline:view()){
+    .kn-view{animation:kn-zoom linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
+    @keyframes kn-zoom{from{scale:.955;opacity:.5}to{scale:1;opacity:1}}
+  }
+
+  /* card hover: quiet lift */
+  .about-card,.trust-grid article,.market-cards article,.team-placeholder,.status-column,.customer-list,.revenue-list,.expansion-path>div,.arch-layer article,.impact-metrics article{transition:translate .35s var(--kn-ease),box-shadow .35s ease,border-color .35s ease,background-color .35s ease,opacity .65s ease,transform .65s ease}
+  :is(.about-card,.market-cards article,.team-placeholder,.status-column,.customer-list,.revenue-list,.expansion-path>div):not(.sr):hover{translate:0 -5px;box-shadow:var(--g-shadow-hover,0 22px 48px rgba(16,36,58,.10));border-color:#b7d6ea}
+  .trust-grid article:not(.sr):hover{translate:0 -5px;border-color:rgba(255,255,255,.34)}
+  .arch-layer article:not(.sr):hover{translate:0 -3px;border-color:#a9cee9}
+  .impact-metrics article:not(.sr):hover{background-color:rgba(255,255,255,.04)}
+  .problem-card>.icon-box,.trust-grid article>span,.arch-layer article>span,.inquiry-list a>span,.roadmap-tabs span{transition:scale .35s var(--kn-ease),background-color .3s,color .3s}
+  .problem-card:hover>.icon-box,.arch-layer article:hover>span{scale:1.08;background-color:var(--blue);color:#fff}
+  .trust-grid article:hover>span{scale:1.08;background-color:var(--cyan);color:var(--navy)}
+
+  /* small interactive details */
+  .inquiry-list a{transition:translate .3s var(--kn-ease),box-shadow .3s}
+  .inquiry-list a:hover{translate:5px 0;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+  .inquiry-list a>i{transition:translate .3s var(--kn-ease)}
+  .inquiry-list a:hover>i{translate:4px 0}
+  .inquiry-list a:hover>span{scale:1.08}
+  .values-row span{transition:translate .3s var(--kn-ease),border-color .3s,color .3s}
+  .values-row span:hover{translate:0 -3px;border-color:var(--blue);color:var(--blue)}
+  .roadmap-tabs button{transition:translate .3s var(--kn-ease),background-color .3s,border-color .3s,color .3s}
+  .roadmap-tabs button:not(.active):hover{translate:0 -3px;border-color:rgba(255,255,255,.34)}
+  .workflow-step:hover>i{border-color:var(--blue)}
+  .evidence-list summary>div{transition:translate .3s var(--kn-ease)}
+  .evidence-list summary:hover>div{translate:6px 0}
+  .evidence-list summary i{transition:transform .35s var(--kn-ease);display:inline-block}
+  .evidence-list details[open]>p{animation:kn-drop .45s var(--kn-ease) both}
+  .comparison-wrap tbody tr{transition:background-color .25s}
+  .comparison-wrap tbody tr:not(.featured):hover{background-color:#f6fafc}
+  .customer-list span,.revenue-list span{transition:translate .25s var(--kn-ease),background-color .25s}
+  .customer-list span:hover,.revenue-list span:hover{translate:4px 0;background-color:#e9f3fa}
+  .footer-grid a:not(.brand){transition:color .25s,translate .25s var(--kn-ease)}
+  .footer-grid a:not(.brand):hover{color:#fff;translate:3px 0}
+  .people-row span{transition:translate .35s var(--kn-ease)}
+  .about-card:hover .people-row span:nth-child(1){translate:-12px 0}
+  .about-card:hover .people-row span:nth-child(2){translate:-6px 0}
+  .about-card:hover .people-row span:nth-child(4){translate:6px 0}
+  @keyframes kn-drop{from{opacity:0;translate:0 -8px}to{opacity:1;translate:0 0}}
+
+  /* logo: dots turn slowly in the hubs, and on hover in the header */
+  .brand .brand-mark{transition:rotate .7s var(--kn-ease)}
+  .brand:hover .brand-mark{rotate:120deg}
+  .solution-center .brand-mark,.business-core .brand-mark{animation:kn-turn 18s linear infinite}
+  @keyframes kn-turn{to{rotate:360deg}}
+
+  /* hubs: soft expanding ring */
+  .business-core{position:relative}
+  .solution-center::before,.business-core::before,.network-center::before{content:"";position:absolute;inset:0;border-radius:inherit;border:1.5px solid var(--cyan);opacity:0;pointer-events:none;animation:kn-ring 3.6s ease-out infinite}
+  @keyframes kn-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}
+
+  /* status dots breathe */
+  .live-dot,.status-dot,.online,.development-badge i,.status-head>span{animation:kn-breathe 2.4s ease-in-out infinite}
+  @keyframes kn-breathe{50%{opacity:.4}}
+  .map-pulse i{position:relative}
+  .map-pulse i::after{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--cyan);animation:kn-ring 2.8s ease-out infinite}
+
+  /* ambient: orbit, technician network, connectors */
+  .vision-orbit{animation:kn-turn 48s linear infinite}
+  .network-node{animation:kn-float 7s ease-in-out infinite}
+  .network-node.b{animation-delay:-1.7s}.network-node.c{animation-delay:-3.4s}.network-node.d{animation-delay:-5.1s}
+  .arch-connector{animation:kn-bob 2.6s ease-in-out infinite}
+  @keyframes kn-bob{50%{translate:0 4px}}
+  .photo-placeholder{position:relative;overflow:hidden}
+  .photo-placeholder::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%);transform:translateX(-100%);animation:kn-sheen 4.5s ease-in-out infinite}
+  @keyframes kn-sheen{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+  /* dark sections: slow drifting glow behind the content */
+  .kn-lit{position:relative;isolation:isolate;overflow:hidden}
+  .kn-glow{position:absolute;z-index:-1;width:620px;height:620px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(55,201,219,.13) 0,rgba(55,201,219,0) 68%);top:-180px;left:-160px;will-change:translate;animation:kn-glow 26s ease-in-out infinite alternate}
+  .kn-glow.b{top:auto;left:auto;bottom:-220px;right:-180px;background:radial-gradient(circle,rgba(39,117,209,.18) 0,rgba(39,117,209,0) 68%);animation-duration:32s;animation-direction:alternate-reverse}
+  @keyframes kn-glow{to{translate:240px 140px}}
+
+  /* content swap when a stage / roadmap tab changes */
+  .kn-swap>*{animation:kn-swap .5s var(--kn-ease) both}
+  .kn-swap>*:nth-child(2){animation-delay:.06s}.kn-swap>*:nth-child(3){animation-delay:.12s}
+  .roadmap-detail .kn-swap li{animation:kn-swap .5s var(--kn-ease) both;animation-delay:calc(.1s + var(--i,0)*45ms)}
+  @keyframes kn-swap{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+
+}
+@media (min-width:1051px) and (prefers-reduced-motion:no-preference){
+  /* hero depth on pointer move */
+  .floating-card{transform:translate3d(var(--px,0),var(--py,0),0);transition:transform .6s var(--kn-ease)}
+  .expansion-path>i,.arch-layer>div>i,.business-flow .flow-arrow{animation:kn-nudge 2.4s ease-in-out infinite}
+  .expansion-path>i:nth-of-type(2){animation-delay:.25s}.expansion-path>i:nth-of-type(3){animation-delay:.5s}
+  @keyframes kn-nudge{50%{translate:5px 0}}
+}
+
+/* travelling robot (travel.js) */
+.kn-buddy{position:fixed;left:0;top:0;z-index:90;pointer-events:none;opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.kn-buddy.on{visibility:visible}
+.robot-stage.kn-robot-out canvas{opacity:0}
+
+/* robot reactions */
+.kn-robot-hover,.kn-robot-hover *{cursor:pointer!important}
+.kn-ping{position:fixed;z-index:89;width:var(--s);height:var(--s);margin:calc(var(--s)/-2) 0 0 calc(var(--s)/-2);border-radius:50%;border:2px solid var(--cyan);pointer-events:none;opacity:0;animation:kn-ping .75s ease-out forwards}
+.kn-ping.b{animation-delay:.14s;border-color:var(--blue)}
+@keyframes kn-ping{from{transform:scale(.45);opacity:.85}to{transform:scale(1.7);opacity:0}}
+.kn-robot-hover,.kn-robot-hover *{cursor:grab!important}
+.kn-robot-drag,.kn-robot-drag *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
+
+/* Keep lateral entrance motion inside responsive page gutters. */
+@media (max-width:1279px) and (prefers-reduced-motion:no-preference){
+  .kn-left{transform:translateX(-18px)}
+  .kn-right{transform:translateX(18px)}
+}
+@media (max-width:760px) and (prefers-reduced-motion:no-preference){
+  .kn-left{transform:translateX(-12px)}
+  .kn-right{transform:translateX(12px)}
+}

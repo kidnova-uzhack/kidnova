@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#10243A">
+  <title>KidNova Admin</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="admin.css?v=20261120-fix">
+</head>
+<body>
+  <div class="adm-login" id="loginView" hidden>
+    <form class="adm-login-card" id="loginForm" novalidate>
+      <a class="adm-brand" href="/"><span class="adm-mark" aria-hidden="true"><i></i><i></i><i></i></span><b>KidNova</b></a>
+      <h1 data-t="loginTitle">Admin panelga kirish</h1>
+      <p class="adm-muted" data-t="loginIntro">Bog‘cha direktorlari va KidNova jamoasi uchun. Hisobni KidNova jamoasi beradi.</p>
+      <label><span data-t="email">Email</span><input name="email" type="email" autocomplete="username" required maxlength="254"></label>
+      <label><span data-t="password">Parol</span><input name="password" type="password" autocomplete="current-password" required minlength="8"></label>
+      <button class="adm-btn adm-btn-primary" type="submit" data-t="signIn">Kirish</button>
+      <p class="adm-error" id="loginError" role="alert"></p>
+      <div class="adm-login-foot"><a href="/" data-t="backToSite">← Asosiy saytga qaytish</a><button type="button" class="adm-lang" data-lang-toggle>EN</button></div>
+      <small class="adm-muted" data-t="syntheticOnly">Faqat uydirma (sintetik) demo ma’lumotlar. Tibbiy tashxis emas.</small>
+    </form>
+  </div>
+
+  <div class="adm-app" id="appView" hidden>
+    <aside class="adm-side">
+      <a class="adm-brand" href="/"><span class="adm-mark" aria-hidden="true"><i></i><i></i><i></i></span><b>KidNova</b></a>
+      <div class="adm-org" id="orgBox"></div>
+      <nav class="adm-nav" id="nav" aria-label="Admin"></nav>
+      <div class="adm-side-foot">
+        <button type="button" class="adm-lang" data-lang-toggle>EN</button>
+        <button type="button" class="adm-btn adm-btn-ghost" id="signOut" data-t="signOut">Chiqish</button>
+      </div>
+    </aside>
+    <main class="adm-main">
+      <header class="adm-top"><h1 id="viewTitle"></h1><span class="adm-pill" id="rolePill"></span></header>
+      <p class="adm-status" id="status" role="status" aria-live="polite"></p>
+      <section id="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <dialog class="adm-dialog" id="dialog"><div id="dialogBody"></div></dialog>
+
+  <script src="supabase-config.js" defer></script>
+  <script src="i18n-ru.js?v=20261120-fix" defer></script>
+  <script src="admin-config.js?v=20261116-admin" defer></script>
+  <script src="supabase-client.js?v=20261116-admin" defer></script>
+  <script src="admin.js?v=20261120-fix" defer></script>
+</body>
+</html>
