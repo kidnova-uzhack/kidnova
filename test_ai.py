@@ -101,6 +101,7 @@ class AIConversationTests(unittest.TestCase):
             self.asked.append(messages)
             return 'AI test javobi'
         self.app = bot.Bot(self.db, lambda *args: self.sent.append(args), ask_ai=ask)
+        self.app.has_consent = lambda user: True
         self.db.execute("INSERT INTO profiles(user,name,age,notes) VALUES(1,'Private child',24,'Private note')")
         self.db.commit()
 

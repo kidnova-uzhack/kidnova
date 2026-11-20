@@ -19,6 +19,7 @@ class BotIntegrationTests(unittest.TestCase):
                          "INSERT INTO profiles VALUES(1,'Ali',18);")
         messages = []
         app = bot.Bot(db, lambda *args: messages.append(args))
+        app.has_consent = lambda user: True
         def say(text, user=1):
             app.handle({'chat': {'id': user, 'type': 'private'}, 'text': text})
         say('👶 Bola profili')

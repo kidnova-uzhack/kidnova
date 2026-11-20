@@ -56,6 +56,7 @@ class QRCheckinTests(unittest.TestCase):
         with sqlite3.connect(self.profile_db) as db:
             sent = []
             app = bot.Bot(db, lambda *args: sent.append(args))
+            app.has_consent = lambda user: True
             app.handle({'chat': {'id': 111, 'type': 'private'}, 'text': '📊 Tarix'})
             self.assertIn('36.7 °C', sent[-1][1])
             self.assertIn('QR tekshiruv', sent[-1][1])

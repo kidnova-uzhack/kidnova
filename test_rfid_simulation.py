@@ -209,6 +209,7 @@ class RFIDEndToEndHTTPTests(unittest.TestCase):
         messages = []
         with sqlite3.connect(self.profile_db) as db:
             app = bot.Bot(db, lambda *args: messages.append(args))
+            app.has_consent = lambda user: True
             app.handle({'chat': {'id': 800001, 'type': 'private'}, 'text': '📊 Tarix'})
         self.assertIn('36.6 °C', messages[-1][1])
         self.assertIn('38.2 °C', messages[-1][1])

@@ -1,4 +1,4 @@
-# GlowWell Telegram bot — hackathon MVP
+# KidNova Telegram bot (@kidnova_uz_bot) — hackathon MVP
 
 ## Task 4: hardware adapter architecture
 
@@ -46,7 +46,7 @@ HTTPS, offline hodisa navbati, rozilik va teg berish/bekor qilish jarayoni hamda
 yuborishni alohida operator qarori bilan yoqish talab qilinadi. QR yoki yuz orqali
 identifikatsiya bu simulyatsiyaga qo‘shilmagan.
 
-## QR orqali bolani aniqlash (KidNova / GlowWell)
+## QR orqali bolani aniqlash (KidNova)
 
 Mavjud ota-ona profili bilan ishlaydi; yangi bot yoki yangi asosiy baza yaratilmaydi.
 QR kartani faqat bog‘cha masʼuli ota-onalik va rozilikni tekshirgach beradi. Asosiy
@@ -79,13 +79,13 @@ keyin qayta ishga tushirish kerak.
 Python 3.10+ kerak. Tashqi Python kutubxonalari kerak emas.
 
 ## Mac’da ishga tushirish
-1. ZIP faylni oching. Terminalda `glowwell` papkasiga kiring.
+1. ZIP faylni oching. Terminalda `kidnova-bot` papkasiga kiring.
 2. `cp .env.example .env`
 3. `nano .env` — BotFather bergan **yangilangan** tokenni BOT_TOKEN yoniga qo‘ying. Saqlash: Ctrl+O, Enter; chiqish: Ctrl+X. Tokenni chatga yoki GitHub’ga yubormang.
 4. `python3 bot.py`
-5. Telegram’da https://t.me/glow_well_bot ni ochib /start yuboring.
+5. Telegram’da https://t.me/kidnova_uz_bot ni ochib /start yuboring.
 
-Bot ishlashi uchun kompyuter yoqilgan, Terminal jarayoni faol va internet mavjud bo‘lishi kerak. Faqat bitta bot jarayonini ishlating. Bu paket hali serverga joylanmagan.
+Bot ishlashi uchun kompyuter yoqilgan, Terminal jarayoni faol va internet mavjud bo‘lishi kerak. Faqat bitta bot jarayonini ishlating: @kidnova_uz_bot Railway serverida ishlayotgan bo‘lsa, Mac’da ishga tushirmang (Dockerfile, `DATA_DIR=/data`).
 
 ## Demo oqimi
 /start → Bola profili → taxallus → yosh (yil, masalan: 2) → jins → vazn (kg) → bo‘y (sm) → muhim izoh → profil kartasi. Jins, vazn, bo‘y va izoh ixtiyoriy: /skip bilan bo‘sh qoldiriladi. Profil kartasidagi tugmalar orqali har bir maydon alohida tahrirlanadi. /cancel yoki Asosiy menyu tugmasi tugallanmagan kiritishni bekor qiladi.

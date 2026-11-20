@@ -1,4 +1,4 @@
-# GlowWell: bog‘chaga kelganda ota-onaga avtomatik xabar
+# KidNova: bog‘chaga kelganda ota-onaga avtomatik xabar
 
 ## Hardware adapter arxitekturasi
 
@@ -112,7 +112,7 @@ faqat buzilgan ma’lumotni to‘sish uchun; tibbiy normal oraliq emas.
 Ushbu versiya faqat haroratni uzatadi; BP, SpO2 yoki yuzdan tashxis chiqarish yo‘q.
 
 ## Xabar misoli
-🌿 GlowWell — bog‘chaga kelish
+🌿 KidNova — bog‘chaga kelish
 
 Farzandingiz Ali bog‘chaga keldi.
 📅 O‘lchov vaqti: 18.10.2026 08:20 (+05)

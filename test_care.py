@@ -12,6 +12,7 @@ class CareTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.sent = []
         self.app = bot.Bot(self.db, lambda *args: self.sent.append(args))
+        self.app.has_consent = lambda user: True
     def say(self, text, user=1):
         self.app.handle({'chat': {'id':user, 'type':'private'}, 'text':text})
     def plan(self, user=1):

@@ -1,4 +1,5 @@
 """KidNova parent bot (formerly GlowWell). Python 3.10+, standard library only."""
+from datetime import datetime, timezone
 import json
 import math
 import os
@@ -46,6 +47,21 @@ WELCOME = ('Assalomu alaykum! 🌿 KidNova botiga xush kelibsiz!\n\n'
            '🗑 Maʼlumotlarni o‘chirish — botdagi profil, holat qaydlari va emlash eslatmalarini o‘chiring.\n\n'
            'Boshlash uchun pastdagi 👶 Bola profili tugmasini bosing. Boshqa bo‘limlarni ham to‘g‘ridan-to‘g‘ri ochishingiz mumkin.\n\n'
            )
+CONSENT_YES, CONSENT_NO = '✅ Roziman', '❌ Rozi emasman'
+CONSENT_MENU = {'keyboard': [[CONSENT_YES], [CONSENT_NO, '📖 Bot qo‘llanmasi']], 'resize_keyboard': True}
+CONSENT = ('🔒 Maxfiylik va rozilik\n\n'
+           'Bot quyidagilarni saqlaydi: bola profili (ism yoki taxallus, yosh, jins, vazn, bo‘y, izoh), '
+           'siz kiritgan harorat va alomatlar, emlash sanalari va KidNova bog‘cha ulanishi (/link).\n\n'
+           '📦 Qayerda: bot serveridagi bazada. KidNova bog‘cha tekshiruvlari bog‘chaning KidNova bazasidan o‘qiladi.\n'
+           '📍 Lokatsiya faqat yaqin klinikalarni topish uchun ishlatiladi va saqlanmaydi.\n'
+           '🤖 ℹ️ Yordam bo‘limiga yozgan savolingiz javob uchun AI xizmatiga yuboriladi.\n\n'
+           '⚕️ Bot shifokor emas va tashxis qo‘ymaydi. Shoshilinch holatda tez yordamga murojaat qiling.\n\n'
+           '🗑 Hamma maʼlumotni istalgan vaqtda 🗑 Maʼlumotlarni o‘chirish tugmasi bilan o‘chirishingiz mumkin.\n\n'
+           'Bu demo: haqiqiy bola maʼlumotlari o‘rniga sunʼiy maʼlumot ishlating.\n\n'
+           'Davom etish uchun ✅ Roziman tugmasini bosing.')
+# Actions allowed before consent: they store nothing new or only delete.
+NO_CONSENT_NEEDED = {CONSENT_YES, CONSENT_NO, '/cancel', '⬅️ Asosiy menyu', '📖 Bot qo‘llanmasi', '/guide',
+                     '🗑 Maʼlumotlarni o‘chirish', '/unlink'}
 AI_MENU = {'keyboard': [['🩺 Shifokor topish', '💉 Emlashlar'], ['🆕 Yangi suhbat', '📖 Bot qo‘llanmasi'], ['⬅️ Asosiy menyu']], 'resize_keyboard': True}
 AI_INTRO = ('🤖 KidNova AI yordamchisi\n\nSavolingizni oddiy matn bilan yozing. Bola parvarishi, bog‘cha va boshqa savollaringizga javob beraman.\n\n'
             'Men AI yordamchiman, shifokor emasman. Javoblar xato bo‘lishi mumkin. Shoshilinch holatda bot javobini kutmay, mahalliy tez yordamga murojaat qiling.\n\n'
@@ -118,6 +134,7 @@ class Bot:
             CREATE TABLE IF NOT EXISTS records(id INTEGER PRIMARY KEY, user INTEGER, temperature REAL, symptoms TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS sessions(user INTEGER PRIMARY KEY, step TEXT, payload TEXT);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value INTEGER);
+            CREATE TABLE IF NOT EXISTS consents(user INTEGER PRIMARY KEY, accepted_at TEXT NOT NULL);
         ''')
         columns = {row[1] for row in db.execute('PRAGMA table_info(profiles)')}
         for column, kind in (('sex', 'TEXT'), ('weight', 'REAL'), ('height', 'REAL'), ('notes', 'TEXT')):
@@ -127,6 +144,12 @@ class Bot:
         care.init_db(db)
         qr_identity.init_db(db)
         rfid_identity.init_db(db)
+
+    def has_consent(self, user):
+        return self.db.execute('SELECT 1 FROM consents WHERE user=?', (user,)).fetchone() is not None
+
+    def ask_consent(self, user):
+        return self.send(user, CONSENT, CONSENT_MENU)
 
     def profile(self, user):
         row = self.db.execute('SELECT name,age,sex,weight,height,notes FROM profiles WHERE user=?', (user,)).fetchone()
@@ -211,12 +234,16 @@ class Bot:
             text = command.split('@')[0] + (separator + arguments if separator else '')
             text = COMMAND_ALIASES.get(text, text)
         if 'location' in msg:
+            if not self.has_consent(user):
+                return self.ask_consent(user)
             if not care.handle(self, user, '', msg['location']):
                 self.send(user, 'Avval 🩺 Shifokor topish bo‘limini oching.', MENU)
             return
         if not text:
             return self.send(user, 'Matn yuboring. /cancel — bekor qilish.')
         if text.split()[0] == '/link':
+            if not self.has_consent(user):
+                return self.ask_consent(user)
             self.clear(user)
             return self.link(user, text.partition(' ')[2])
         if text == '/unlink':
@@ -224,7 +251,22 @@ class Bot:
             return self.unlink(user)
         if text.split()[0].split('@')[0] == '/start':
             self.clear(user)
+            if not self.has_consent(user):
+                self.send(user, WELCOME)
+                return self.ask_consent(user)
             return self.send(user, WELCOME, MENU)
+        if text == CONSENT_YES:
+            self.db.execute('INSERT OR IGNORE INTO consents(user, accepted_at) VALUES(?, ?)',
+                            (user, datetime.now(timezone.utc).isoformat(timespec='seconds')))
+            self.db.commit()
+            return self.send(user, 'Rahmat! Endi botdan foydalanishingiz mumkin. Boshlash uchun 👶 Bola profili tugmasini bosing.', MENU)
+        if text == CONSENT_NO:
+            self.clear(user)
+            return self.send(user, 'Tushunarli. Rozilik bermasangiz, bot sizning maʼlumotlaringizni saqlamaydi. '
+                                   'Fikringiz o‘zgarsa, /start yuboring.', CONSENT_MENU)
+        pending = self.db.execute('SELECT step FROM sessions WHERE user=?', (user,)).fetchone()
+        if not self.has_consent(user) and text not in NO_CONSENT_NEEDED and not (pending and pending[0] == 'delete'):
+            return self.ask_consent(user)
         if text in ('/cancel', '⬅️ Asosiy menyu'):
             self.clear(user)
             return self.send(user, 'Quyidagi menyudan tanlang. Bu demo: avval sunʼiy maʼlumot bilan sinang.', MENU)
@@ -376,7 +418,7 @@ class Bot:
             if text != 'OCHIR':
                 return self.send(user, 'Tasdiqlash uchun OCHIR yoki bekor qilish uchun /cancel yuboring.')
             for table in ('attendance_events', 'rfid_credentials', 'qr_credentials',
-                          'records', 'vaccinations', 'sessions', 'profiles'):
+                          'records', 'vaccinations', 'sessions', 'profiles', 'consents'):
                 self.db.execute(f'DELETE FROM {table} WHERE user=?', (user,))
             self.db.commit()
             note = ''
@@ -386,7 +428,8 @@ class Bot:
                     note = ' KidNova ulanishi ham uzildi.'
                 except supabase_bridge.SupabaseError:
                     note = ' KidNova ulanishini uzib bo‘lmadi; keyinroq /unlink yuboring.'
-            return self.send(user, 'Bot bazasidagi maʼlumotlaringiz o‘chirildi.' + note, MENU)
+            return self.send(user, 'Bot bazasidagi maʼlumotlaringiz va rozilik belgisi o‘chirildi.' + note
+                             + ' Botdan qayta foydalanish uchun /start yuboring.', MENU)
 
 def api(token, method, payload):
     req = urllib.request.Request('https://api.telegram.org/bot' + token + '/' + method,

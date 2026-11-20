@@ -117,8 +117,10 @@ class DeliveryTests(unittest.TestCase):
 class BotCommandTests(unittest.TestCase):
     def make(self, client):
         self.sent = []
-        return bot.Bot(sqlite3.connect(':memory:'), lambda user, text, markup=None: self.sent.append(text),
-                       kidnova=client)
+        app = bot.Bot(sqlite3.connect(':memory:'), lambda user, text, markup=None: self.sent.append(text),
+                      kidnova=client)
+        app.has_consent = lambda user: True
+        return app
 
     def msg(self, text):
         return {'chat': {'id': 111, 'type': 'private'}, 'text': text}
