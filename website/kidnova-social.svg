@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10243A"/><stop offset="1" stop-color="#163D61"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/><circle cx="1040" cy="90" r="260" fill="#37C9DB" opacity=".1"/><circle cx="105" cy="590" r="220" fill="#2775D1" opacity=".18"/>
+  <g transform="translate(105 125)"><circle cx="34" cy="30" r="26" fill="#2775D1"/><circle cx="78" cy="38" r="24" fill="#37C9DB"/><circle cx="50" cy="78" r="26" fill="#65D8C5"/></g>
+  <text x="220" y="205" fill="#fff" font-family="Arial,sans-serif" font-size="78" font-weight="700">KidNova</text>
+  <text x="105" y="340" fill="#fff" font-family="Arial,sans-serif" font-size="54" font-weight="700">Smarter care for every little future.</text>
+  <text x="105" y="410" fill="#AFC6D7" font-family="Arial,sans-serif" font-size="26">Connected pediatric screening support · Starting in Fergana, Uzbekistan</text>
+  <text x="105" y="535" fill="#37C9DB" font-family="Arial,sans-serif" font-size="20" letter-spacing="4">UZHACK 2026 · PEDIATRIC HEALTHTECH</text>
+</svg>
