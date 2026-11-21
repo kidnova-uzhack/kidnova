@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+children.json
+backups/
+qr-cards/
+__pycache__/
+.git/
+test_*.py
+arrival/test_*.py

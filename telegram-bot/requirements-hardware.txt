@@ -1,0 +1,4 @@
+# OPTIONAL Raspberry Pi prototype dependencies. Not required for simulation or bot tests.
+mfrc522-python
+adafruit-blinka
+adafruit-circuitpython-mlx90614

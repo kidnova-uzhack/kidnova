@@ -1,0 +1,7 @@
+.env
+*.db
+__pycache__/
+*.sqlite3
+children.json
+backups/
+qr-cards/
